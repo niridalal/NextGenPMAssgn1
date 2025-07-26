@@ -119,12 +119,12 @@ const QuizInterface: React.FC<QuizInterfaceProps> = ({ questions, onBack }) => {
       <div className="flex items-center justify-between mb-8">
         <button
           onClick={onBack}
-          className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors"
+          className="flex items-center space-x-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors"
         >
-          ← Back to Upload
+          <span>← Back to Upload</span>
         </button>
         <div className="text-center">
-          <h2 className="text-2xl font-bold text-gray-900">Quiz</h2>
+          <h2 className="text-3xl font-bold text-gray-900">Knowledge Quiz</h2>
           <p className="text-gray-600">Question {currentQuestionIndex + 1} of {questions.length}</p>
         </div>
         <button
@@ -152,7 +152,7 @@ const QuizInterface: React.FC<QuizInterfaceProps> = ({ questions, onBack }) => {
           </h3>
         </div>
 
-        <div className="p-8">
+        <div className="p-8 space-y-6">
           <div className="space-y-4">
             {currentQuestion.options.map((option, index) => {
               const isSelected = userAnswer === index;
@@ -166,7 +166,7 @@ const QuizInterface: React.FC<QuizInterfaceProps> = ({ questions, onBack }) => {
                   onClick={() => handleAnswerSelect(index)}
                   disabled={showResults}
                   className={`
-                    w-full text-left p-4 rounded-xl border-2 transition-all duration-200
+                    w-full text-left p-5 rounded-xl border-2 transition-all duration-200 font-medium
                     ${showCorrect 
                       ? 'border-green-500 bg-green-50 text-green-800' 
                       : showIncorrect
@@ -179,7 +179,7 @@ const QuizInterface: React.FC<QuizInterfaceProps> = ({ questions, onBack }) => {
                   `}
                 >
                   <div className="flex items-center justify-between">
-                    <span>{option}</span>
+                    <span className="leading-relaxed">{option}</span>
                     {showResults && (
                       <div>
                         {isCorrect ? (
@@ -198,7 +198,7 @@ const QuizInterface: React.FC<QuizInterfaceProps> = ({ questions, onBack }) => {
           {showResults && (
             <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-xl">
               <h4 className="font-bold text-blue-900 mb-2">Explanation</h4>
-              <p className="text-blue-800">{currentQuestion.explanation}</p>
+              <p className="text-blue-800 leading-relaxed">{currentQuestion.explanation}</p>
             </div>
           )}
 
@@ -217,7 +217,7 @@ const QuizInterface: React.FC<QuizInterfaceProps> = ({ questions, onBack }) => {
             {showResults && (
               <button
                 onClick={handleNext}
-                className="flex items-center space-x-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-colors ml-auto"
+                className="flex items-center space-x-2 px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-colors ml-auto font-semibold"
               >
                 <span>{currentQuestionIndex === questions.length - 1 ? 'Finish Quiz' : 'Next Question'}</span>
                 <ArrowRight className="h-5 w-5" />

@@ -50,12 +50,12 @@ const FlashcardViewer: React.FC<FlashcardViewerProps> = ({ flashcards, onBack })
       <div className="flex items-center justify-between mb-8">
         <button
           onClick={onBack}
-          className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors"
+          className="flex items-center space-x-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors"
         >
-          ← Back to Upload
+          <span>← Back to Upload</span>
         </button>
         <div className="text-center">
-          <h2 className="text-2xl font-bold text-gray-900">Flashcards</h2>
+          <h2 className="text-3xl font-bold text-gray-900">Study Flashcards</h2>
           <p className="text-gray-600">{currentIndex + 1} of {flashcards.length}</p>
         </div>
         <button
@@ -88,12 +88,12 @@ const FlashcardViewer: React.FC<FlashcardViewerProps> = ({ flashcards, onBack })
           <div className="absolute inset-0 w-full h-full backface-hidden rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-600 p-8 flex flex-col justify-center items-center text-white shadow-xl">
             <div className="text-center">
               <div className="mb-4">
-                <span className="px-4 py-2 bg-white/20 rounded-full text-sm font-semibold">
+                <span className="px-4 py-2 bg-white/20 rounded-full text-sm font-semibold uppercase tracking-wide">
                   {currentCard.category}
                 </span>
               </div>
-              <h3 className="text-2xl font-bold mb-6">{currentCard.question}</h3>
-              <p className="text-blue-100">Click to reveal answer</p>
+              <h3 className="text-2xl font-bold mb-6 leading-relaxed">{currentCard.question}</h3>
+              <p className="text-blue-100 text-lg">Click to reveal answer</p>
             </div>
           </div>
 
@@ -101,11 +101,11 @@ const FlashcardViewer: React.FC<FlashcardViewerProps> = ({ flashcards, onBack })
           <div className="absolute inset-0 w-full h-full backface-hidden rotate-y-180 rounded-2xl bg-gradient-to-br from-green-600 to-emerald-600 p-8 flex flex-col justify-center items-center text-white shadow-xl">
             <div className="text-center">
               <div className="mb-4">
-                <span className="px-4 py-2 bg-white/20 rounded-full text-sm font-semibold">
+                <span className="px-4 py-2 bg-white/20 rounded-full text-sm font-semibold uppercase tracking-wide">
                   Answer
                 </span>
               </div>
-              <p className="text-xl leading-relaxed">{currentCard.answer}</p>
+              <p className="text-xl leading-relaxed max-w-2xl">{currentCard.answer}</p>
             </div>
           </div>
         </div>
