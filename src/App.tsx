@@ -1,5 +1,8 @@
 import React, { useState } from 'react';
 import { BookOpen, CreditCard, Brain, FileText } from 'lucide-react';
+import { useAuth } from './contexts/AuthContext';
+import SignInPage from './components/SignInPage';
+import UserMenu from './components/UserMenu';
 import PDFUploader from './components/PDFUploader';
 import FlashcardViewer from './components/FlashcardViewer';
 import QuizInterface from './components/QuizInterface';
@@ -10,6 +13,7 @@ import { analyzeContentWithOpenAI } from './utils/contentGenerator';
 type ActiveView = 'upload' | 'flashcards' | 'quiz';
 
 function App() {
+  const { user, loading } = useAuth();
   const [activeView, setActiveView] = useState<ActiveView>('upload');
   const [pdfData, setPdfData] = useState<{ filename: string; content: string } | null>(null);
   const [flashcards, setFlashcards] = useState<Flashcard[]>([]);
@@ -18,6 +22,23 @@ function App() {
   const [processingStep, setProcessingStep] = useState('');
   const [processingProgress, setProcessingProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
+
+  // Show loading spinner while checking authentication
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show sign-in page if user is not authenticated
+  if (!user) {
+    return <SignInPage />;
+  }
 
   const handleFileSelect = async (file: File) => {
     setIsProcessing(true);
@@ -114,6 +135,9 @@ function App() {
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
         <div className="text-center mb-12">
+          <div className="absolute top-8 right-8">
+            <UserMenu />
+          </div>
           <div className="flex items-center justify-center mb-6">
             <div className="p-4 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl shadow-lg">
               <BookOpen className="h-10 w-10 text-white" />
