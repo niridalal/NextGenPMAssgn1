@@ -16,7 +16,8 @@ export const analyzeContentWithOpenAI = async (pdfContent: string): Promise<Cont
 
   // Check if OpenAI is available
   if (!openai) {
-    console.log('OpenAI API key not provided, using local generation');
+    console.warn('⚠️ OpenAI API key not provided or client not initialized, using local generation');
+    console.log('💡 To use OpenAI: Add VITE_OPENAI_API_KEY to your .env file');
     return generateLocalContent(pdfContent);
   }
 
