@@ -5,11 +5,41 @@ import { Flashcard } from '../types';
 interface FlashcardViewerProps {
   flashcards: Flashcard[];
   onBack: () => void;
+  onProgress?: (currentIndex: number, viewedIds: Set<string>) => void;
+  initialIndex?: number;
+  viewedCards?: Set<string>;
 }
 
-const FlashcardViewer: React.FC<FlashcardViewerProps> = ({ flashcards, onBack }) => {
-  const [currentIndex, setCurrentIndex] = useState(0);
+const FlashcardViewer: React.FC<FlashcardViewerProps> = ({ 
+  flashcards, 
+  onBack, 
+  onProgress,
+  initialIndex = 0,
+  viewedCards = new Set()
+}) => {
+  const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [isFlipped, setIsFlipped] = useState(false);
+  const [viewedCardIds, setViewedCardIds] = useState<Set<string>>(new Set(viewedCards));
+
+  // Track when a card is viewed (flipped)
+  const handleCardFlip = () => {
+    const newFlipped = !isFlipped;
+    setIsFlipped(newFlipped);
+    
+    if (newFlipped && !viewedCardIds.has(currentCard.id)) {
+      const newViewedIds = new Set(viewedCardIds);
+      newViewedIds.add(currentCard.id);
+      setViewedCardIds(newViewedIds);
+      onProgress?.(currentIndex, newViewedIds);
+    }
+  };
+
+  // Update progress when index changes
+  const updateProgress = (newIndex: number) => {
+    setCurrentIndex(newIndex);
+    setIsFlipped(false);
+    onProgress?.(newIndex, viewedCardIds);
+  };
 
   if (!flashcards.length) {
     return (
@@ -30,18 +60,17 @@ const FlashcardViewer: React.FC<FlashcardViewerProps> = ({ flashcards, onBack })
   const currentCard = flashcards[currentIndex];
 
   const nextCard = () => {
-    setCurrentIndex((prev) => (prev + 1) % flashcards.length);
-    setIsFlipped(false);
+    const newIndex = (currentIndex + 1) % flashcards.length;
+    updateProgress(newIndex);
   };
 
   const prevCard = () => {
-    setCurrentIndex((prev) => (prev - 1 + flashcards.length) % flashcards.length);
-    setIsFlipped(false);
+    const newIndex = (currentIndex - 1 + flashcards.length) % flashcards.length;
+    updateProgress(newIndex);
   };
 
   const resetCards = () => {
-    setCurrentIndex(0);
-    setIsFlipped(false);
+    updateProgress(0);
   };
 
   return (
@@ -82,14 +111,21 @@ const FlashcardViewer: React.FC<FlashcardViewerProps> = ({ flashcards, onBack })
             relative w-full h-full cursor-pointer transform-style-preserve-3d transition-transform duration-700
             ${isFlipped ? 'rotate-y-180' : ''}
           `}
-          onClick={() => setIsFlipped(!isFlipped)}
+          onClick={handleCardFlip}
         >
           {/* Front of card */}
-          <div className="absolute inset-0 w-full h-full backface-hidden rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-600 p-8 flex flex-col justify-center items-center text-white shadow-xl">
+          <div className={`absolute inset-0 w-full h-full backface-hidden rounded-2xl p-8 flex flex-col justify-center items-center text-white shadow-xl ${
+            viewedCardIds.has(currentCard.id) 
+              ? 'bg-gradient-to-br from-green-600 to-emerald-600' 
+              : 'bg-gradient-to-br from-blue-600 to-indigo-600'
+          }`}>
             <div className="text-center">
               <div className="mb-4">
-                <span className="px-4 py-2 bg-white/20 rounded-full text-sm font-semibold tracking-wide">
-                  {currentCard.category}
+                <span className="px-4 py-2 bg-white/20 rounded-full text-sm font-semibold tracking-wide flex items-center space-x-2">
+                  <span>{currentCard.category}</span>
+                  {viewedCardIds.has(currentCard.id) && (
+                    <span className="text-xs">✓ Viewed</span>
+                  )}
                 </span>
               </div>
               <h3 className="text-xl font-bold mb-6 leading-relaxed max-w-2xl">{currentCard.question}</h3>

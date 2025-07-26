@@ -10,6 +10,8 @@ import ProgressTracker from './components/ProgressTracker';
 import { Flashcard, QuizQuestion, PDFProgress } from './types';
 import { extractTextFromPDF } from './utils/pdfProcessor';
 import { analyzeContentWithOpenAI } from './utils/contentGenerator';
+import { supabase } from './lib/supabase';
+import { useAuth } from './contexts/AuthContext';
 
 type ActiveView = 'home' | 'flashcards' | 'quiz';
 type HomeTab = 'upload' | 'progress';
@@ -21,44 +23,71 @@ function App() {
   const [pdfData, setPdfData] = useState<{ filename: string; content: string } | null>(null);
   const [flashcards, setFlashcards] = useState<Flashcard[]>([]);
   const [quizQuestions, setQuizQuestions] = useState<QuizQuestion[]>([]);
+  const [currentPDFProgress, setCurrentPDFProgress] = useState<PDFProgress | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingStep, setProcessingStep] = useState('');
   const [processingProgress, setProcessingProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [progressData, setProgressData] = useState<PDFProgress[]>([]);
 
-  // Mock progress data - in a real app, this would come from a database
-  const [progressData] = useState<PDFProgress[]>([
-    {
-      id: 'pdf-1',
-      filename: 'Machine Learning Fundamentals.pdf',
-      flashcardsTotal: 15,
-      flashcardsCompleted: 8,
-      quizTotal: 10,
-      quizCompleted: 3,
-      lastAccessed: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), // 2 hours ago
-      createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(), // 1 day ago
-    },
-    {
-      id: 'pdf-2',
-      filename: 'Data Structures and Algorithms.pdf',
-      flashcardsTotal: 20,
-      flashcardsCompleted: 20,
-      quizTotal: 12,
-      quizCompleted: 9,
-      lastAccessed: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(), // 6 hours ago
-      createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), // 3 days ago
-    },
-    {
-      id: 'pdf-3',
-      filename: 'React Development Guide.pdf',
-      flashcardsTotal: 12,
-      flashcardsCompleted: 2,
-      quizTotal: 8,
-      quizCompleted: 0,
-      lastAccessed: new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString(), // 12 hours ago
-      createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), // 2 days ago
-    },
-  ]);
+  // Load progress data on component mount
+  React.useEffect(() => {
+    if (user) {
+      loadProgressData();
+    }
+  }, [user]);
+
+  const loadProgressData = async () => {
+    try {
+      const savedProgress = localStorage.getItem(`pdf_progress_${user?.id}`);
+      if (savedProgress) {
+        const parsed = JSON.parse(savedProgress);
+        // Convert Set objects back from arrays
+        const progressWithSets = parsed.map((item: any) => ({
+          ...item,
+          flashcardsViewed: new Set(item.flashcardsViewed || []),
+          quizAnswered: new Set(item.quizAnswered || [])
+        }));
+        setProgressData(progressWithSets);
+      }
+    } catch (error) {
+      console.error('Error loading progress data:', error);
+    }
+  };
+
+  const saveProgressData = (data: PDFProgress[]) => {
+    try {
+      // Convert Set objects to arrays for JSON serialization
+      const dataForStorage = data.map(item => ({
+        ...item,
+        flashcardsViewed: Array.from(item.flashcardsViewed),
+        quizAnswered: Array.from(item.quizAnswered)
+      }));
+      localStorage.setItem(`pdf_progress_${user?.id}`, JSON.stringify(dataForStorage));
+      setProgressData(data);
+    } catch (error) {
+      console.error('Error saving progress data:', error);
+    }
+  };
+
+  const updatePDFProgress = (updatedProgress: PDFProgress) => {
+    const newProgressData = progressData.map(item => 
+      item.id === updatedProgress.id ? updatedProgress : item
+    );
+    saveProgressData(newProgressData);
+    setCurrentPDFProgress(updatedProgress);
+  };
+
+  const deletePDFProgress = (pdfId: string) => {
+    const newProgressData = progressData.filter(item => item.id !== pdfId);
+    saveProgressData(newProgressData);
+    
+    if (currentPDFProgress?.id === pdfId) {
+      setCurrentPDFProgress(null);
+      setActiveView('home');
+      setActiveHomeTab('upload');
+    }
+  };
 
   // Show loading spinner while checking authentication
   if (loading) {
@@ -133,6 +162,29 @@ function App() {
       setFlashcards(analysisResult.flashcards);
       setQuizQuestions(analysisResult.quizQuestions);
       
+      // Create new progress entry
+      const newProgress: PDFProgress = {
+        id: `pdf-${Date.now()}`,
+        filename: extractedData.filename,
+        content: extractedData.content,
+        flashcardsTotal: analysisResult.flashcards.length,
+        flashcardsCompleted: 0,
+        flashcardsViewed: new Set(),
+        quizTotal: analysisResult.quizQuestions.length,
+        quizCompleted: 0,
+        quizAnswered: new Set(),
+        currentFlashcardIndex: 0,
+        currentQuizIndex: 0,
+        lastAccessed: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+        flashcards: analysisResult.flashcards,
+        quizQuestions: analysisResult.quizQuestions
+      };
+      
+      const newProgressData = [...progressData, newProgress];
+      saveProgressData(newProgressData);
+      setCurrentPDFProgress(newProgress);
+      
       setProcessingStep('Complete!');
       setProcessingProgress(100);
       
@@ -160,19 +212,57 @@ function App() {
   const handleBackToUpload = () => {
     setActiveView('home');
     setActiveHomeTab('upload');
-    setPdfData(null);
-    setFlashcards([]);
-    setQuizQuestions([]);
+    // Don't clear data, just go back to home
     setError(null);
     setProcessingStep('');
     setProcessingProgress(0);
   };
 
   const handleSelectPDF = (pdfId: string) => {
-    // In a real app, you would load the PDF data and progress from database
-    console.log('Selected PDF:', pdfId);
-    // For now, just switch to flashcards view
+    const selectedProgress = progressData.find(p => p.id === pdfId);
+    if (selectedProgress) {
+      setCurrentPDFProgress(selectedProgress);
+      setPdfData({
+        filename: selectedProgress.filename,
+        content: selectedProgress.content
+      });
+      setFlashcards(selectedProgress.flashcards);
+      setQuizQuestions(selectedProgress.quizQuestions);
+      
+      // Update last accessed time
+      const updatedProgress = {
+        ...selectedProgress,
+        lastAccessed: new Date().toISOString()
+      };
+      updatePDFProgress(updatedProgress);
+    }
     setActiveView('flashcards');
+  };
+
+  const handleFlashcardProgress = (currentIndex: number, viewedIds: Set<string>) => {
+    if (currentPDFProgress) {
+      const updatedProgress = {
+        ...currentPDFProgress,
+        currentFlashcardIndex: currentIndex,
+        flashcardsViewed: viewedIds,
+        flashcardsCompleted: viewedIds.size,
+        lastAccessed: new Date().toISOString()
+      };
+      updatePDFProgress(updatedProgress);
+    }
+  };
+
+  const handleQuizProgress = (currentIndex: number, answeredIds: Set<string>, answers: number[]) => {
+    if (currentPDFProgress) {
+      const updatedProgress = {
+        ...currentPDFProgress,
+        currentQuizIndex: currentIndex,
+        quizAnswered: answeredIds,
+        quizCompleted: answeredIds.size,
+        lastAccessed: new Date().toISOString()
+      };
+      updatePDFProgress(updatedProgress);
+    }
   };
 
   return (
@@ -294,23 +384,27 @@ function App() {
                 <ProgressTracker
                   progressData={progressData}
                   onSelectPDF={handleSelectPDF}
+                  onDeletePDF={deletePDFProgress}
                 />
               )}
             </div>
           ) : activeView === 'flashcards' ? (
-            <div className="bg-white rounded-3xl shadow-xl p-12">
-              <FlashcardViewer 
-                flashcards={flashcards} 
-                onBack={handleBackToUpload}
-              />
-            </div>
+            <FlashcardViewer 
+              flashcards={flashcards} 
+              onBack={handleBackToUpload}
+              onProgress={handleFlashcardProgress}
+              initialIndex={currentPDFProgress?.currentFlashcardIndex || 0}
+              viewedCards={currentPDFProgress?.flashcardsViewed || new Set()}
+            />
           ) : (
-            <div className="bg-white rounded-3xl shadow-xl p-12">
-              <QuizInterface 
-                questions={quizQuestions} 
-                onBack={handleBackToUpload}
-              />
-            </div>
+            <QuizInterface 
+              questions={quizQuestions} 
+              onBack={handleBackToUpload}
+              onProgress={handleQuizProgress}
+              initialIndex={currentPDFProgress?.currentQuizIndex || 0}
+              initialAnswers={[]} // Could store answers if needed
+              answeredQuestions={currentPDFProgress?.quizAnswered || new Set()}
+            />
           )}
         </div>
 

@@ -24,10 +24,17 @@ export interface PDFDocument {
 export interface PDFProgress {
   id: string;
   filename: string;
+  content: string;
   flashcardsTotal: number;
   flashcardsCompleted: number;
+  flashcardsViewed: Set<string>;
   quizTotal: number;
   quizCompleted: number;
+  quizAnswered: Set<string>;
+  currentFlashcardIndex: number;
+  currentQuizIndex: number;
   lastAccessed: string;
   createdAt: string;
+  flashcards: Flashcard[];
+  quizQuestions: QuizQuestion[];
 }

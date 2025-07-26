@@ -5,13 +5,25 @@ import { QuizQuestion } from '../types';
 interface QuizInterfaceProps {
   questions: QuizQuestion[];
   onBack: () => void;
+  onProgress?: (currentIndex: number, answeredIds: Set<string>, answers: number[]) => void;
+  initialIndex?: number;
+  initialAnswers?: number[];
+  answeredQuestions?: Set<string>;
 }
 
-const QuizInterface: React.FC<QuizInterfaceProps> = ({ questions, onBack }) => {
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [selectedAnswers, setSelectedAnswers] = useState<number[]>([]);
+const QuizInterface: React.FC<QuizInterfaceProps> = ({ 
+  questions, 
+  onBack, 
+  onProgress,
+  initialIndex = 0,
+  initialAnswers = [],
+  answeredQuestions = new Set()
+}) => {
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(initialIndex);
+  const [selectedAnswers, setSelectedAnswers] = useState<number[]>(initialAnswers);
   const [showResults, setShowResults] = useState(false);
   const [quizCompleted, setQuizCompleted] = useState(false);
+  const [answeredQuestionIds, setAnsweredQuestionIds] = useState<Set<string>>(new Set(answeredQuestions));
 
   if (!questions.length) {
     return (
@@ -39,12 +51,22 @@ const QuizInterface: React.FC<QuizInterfaceProps> = ({ questions, onBack }) => {
     const newAnswers = [...selectedAnswers];
     newAnswers[currentQuestionIndex] = optionIndex;
     setSelectedAnswers(newAnswers);
+    
+    // Mark question as answered
+    const newAnsweredIds = new Set(answeredQuestionIds);
+    newAnsweredIds.add(currentQuestion.id);
+    setAnsweredQuestionIds(newAnsweredIds);
+    
+    // Update progress
+    onProgress?.(currentQuestionIndex, newAnsweredIds, newAnswers);
   };
 
   const handleNext = () => {
     if (currentQuestionIndex < questions.length - 1) {
-      setCurrentQuestionIndex(currentQuestionIndex + 1);
+      const newIndex = currentQuestionIndex + 1;
+      setCurrentQuestionIndex(newIndex);
       setShowResults(false);
+      onProgress?.(newIndex, answeredQuestionIds, selectedAnswers);
     } else {
       setQuizCompleted(true);
     }
@@ -55,10 +77,17 @@ const QuizInterface: React.FC<QuizInterfaceProps> = ({ questions, onBack }) => {
   };
 
   const resetQuiz = () => {
-    setCurrentQuestionIndex(0);
-    setSelectedAnswers([]);
+    const newIndex = 0;
+    const newAnswers: number[] = [];
+    const newAnsweredIds = new Set<string>();
+    
+    setCurrentQuestionIndex(newIndex);
+    setSelectedAnswers(newAnswers);
     setShowResults(false);
     setQuizCompleted(false);
+    setAnsweredQuestionIds(newAnsweredIds);
+    
+    onProgress?.(newIndex, newAnsweredIds, newAnswers);
   };
 
   const calculateScore = () => {
@@ -159,6 +188,7 @@ const QuizInterface: React.FC<QuizInterfaceProps> = ({ questions, onBack }) => {
               const isCorrect = index === currentQuestion.correctAnswer;
               const showCorrect = showResults && isCorrect;
               const showIncorrect = showResults && isSelected && !isCorrect;
+              const wasAnswered = answeredQuestionIds.has(currentQuestion.id);
 
               return (
                 <button
@@ -173,13 +203,20 @@ const QuizInterface: React.FC<QuizInterfaceProps> = ({ questions, onBack }) => {
                       ? 'border-red-500 bg-red-50 text-red-800'
                       : isSelected
                       ? 'border-blue-500 bg-blue-50 text-blue-800'
+                      : wasAnswered && !showResults
+                      ? 'border-gray-400 bg-gray-50 text-gray-700'
                       : 'border-gray-200 hover:border-blue-300 hover:bg-blue-50'
                     }
                     ${showResults ? 'cursor-default' : 'cursor-pointer'}
                   `}
                 >
                   <div className="flex items-center justify-between">
-                    <span className="leading-relaxed">{option}</span>
+                    <span className="leading-relaxed flex items-center space-x-2">
+                      <span>{option}</span>
+                      {wasAnswered && !showResults && isSelected && (
+                        <span className="text-xs text-blue-600">✓ Selected</span>
+                      )}
+                    </span>
                     {showResults && (
                       <div>
                         {isCorrect ? (

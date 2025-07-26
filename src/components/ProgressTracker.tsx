@@ -5,9 +5,10 @@ import { PDFProgress } from '../types';
 interface ProgressTrackerProps {
   progressData: PDFProgress[];
   onSelectPDF: (pdfId: string) => void;
+  onDeletePDF?: (pdfId: string) => void;
 }
 
-const ProgressTracker: React.FC<ProgressTrackerProps> = ({ progressData, onSelectPDF }) => {
+const ProgressTracker: React.FC<ProgressTrackerProps> = ({ progressData, onSelectPDF, onDeletePDF }) => {
   const calculateOverallProgress = (progress: PDFProgress) => {
     const totalItems = progress.flashcardsTotal + progress.quizTotal;
     const completedItems = progress.flashcardsCompleted + progress.quizCompleted;
@@ -159,7 +160,20 @@ const ProgressTracker: React.FC<ProgressTrackerProps> = ({ progressData, onSelec
 
                 {/* Action Hint */}
                 <div className="mt-4 text-center">
-                  <p className="text-sm text-gray-500">Click to continue learning</p>
+                  <div className="flex items-center justify-center space-x-4">
+                    <p className="text-sm text-gray-500">Click to continue learning</p>
+                    {onDeletePDF && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onDeletePDF(progress.id);
+                        }}
+                        className="text-xs text-red-500 hover:text-red-700 underline"
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
