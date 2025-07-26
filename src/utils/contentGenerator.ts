@@ -3,119 +3,43 @@ import { Flashcard, QuizQuestion } from '../types';
 export const generateFlashcards = (text: string): Flashcard[] => {
   const flashcards: Flashcard[] = [];
   
-  // Target count based on content length
-  const targetCount = Math.min(Math.max(10, Math.floor(text.length / 800)), 25);
-  
   // Clean and prepare text
   const cleanText = text.replace(/\s+/g, ' ').trim();
-  const sentences = cleanText.split(/[.!?]+/).filter(s => s.trim().length > 40);
-  const paragraphs = cleanText.split(/\n\s*\n/).filter(p => p.trim().length > 100);
+  const sentences = cleanText.split(/[.!?]+/).filter(s => s.trim().length > 30);
+  const paragraphs = cleanText.split(/\n\s*\n/).filter(p => p.trim().length > 50);
   
-  // Enhanced extraction functions
-  const definitions = extractDefinitions(cleanText);
-  const keyTerms = extractKeyTerms(cleanText);
-  const processes = extractProcesses(cleanText);
-  const concepts = extractConcepts(cleanText);
-  const relationships = extractRelationships(cleanText);
-  const examples = extractExamples(cleanText);
-  const principles = extractPrinciples(cleanText);
-  const comparisons = extractComparisons(cleanText);
+  // Target count based on content length
+  const targetCount = Math.min(Math.max(8, Math.floor(text.length / 600)), 20);
   
-  // Generate definition flashcards (high priority)
-  definitions.forEach((def, index) => {
+  // Extract meaningful content from the document
+  const meaningfulContent = extractMeaningfulContent(cleanText);
+  
+  // Generate flashcards from extracted content
+  meaningfulContent.forEach((content, index) => {
     if (flashcards.length < targetCount) {
       flashcards.push({
         id: flashcards.length + 1,
-        question: `What is ${def.term}?`,
-        answer: def.definition,
-        category: 'Definition'
+        question: content.question,
+        answer: content.answer,
+        category: content.category
       });
     }
   });
   
-  // Generate concept explanation flashcards
-  concepts.forEach((concept, index) => {
-    if (flashcards.length < targetCount) {
-      flashcards.push({
-        id: flashcards.length + 1,
-        question: `Explain the concept of ${concept.name}`,
-        answer: concept.explanation,
-        category: 'Concept'
-      });
-    }
-  });
-  
-  // Generate process flashcards
-  processes.forEach((process, index) => {
-    if (flashcards.length < targetCount) {
-      flashcards.push({
-        id: flashcards.length + 1,
-        question: `How does ${process.name} work?`,
-        answer: process.description,
-        category: 'Process'
-      });
-    }
-  });
-  
-  // Generate relationship flashcards
-  relationships.forEach((rel, index) => {
-    if (flashcards.length < targetCount) {
-      flashcards.push({
-        id: flashcards.length + 1,
-        question: `What is the relationship between ${rel.entity1} and ${rel.entity2}?`,
-        answer: rel.relationship,
-        category: 'Relationship'
-      });
-    }
-  });
-  
-  // Generate example-based flashcards
-  examples.forEach((example, index) => {
-    if (flashcards.length < targetCount) {
-      flashcards.push({
-        id: flashcards.length + 1,
-        question: `Provide an example of ${example.concept}`,
-        answer: example.example,
-        category: 'Example'
-      });
-    }
-  });
-  
-  // Generate principle flashcards
-  principles.forEach((principle, index) => {
-    if (flashcards.length < targetCount) {
-      flashcards.push({
-        id: flashcards.length + 1,
-        question: `What is the principle behind ${principle.topic}?`,
-        answer: principle.principle,
-        category: 'Principle'
-      });
-    }
-  });
-  
-  // Generate comparison flashcards
-  comparisons.forEach((comp, index) => {
-    if (flashcards.length < targetCount) {
-      flashcards.push({
-        id: flashcards.length + 1,
-        question: `Compare and contrast ${comp.item1} and ${comp.item2}`,
-        answer: comp.comparison,
-        category: 'Comparison'
-      });
-    }
-  });
-  
-  // Generate key term flashcards
-  keyTerms.forEach((term, index) => {
-    if (flashcards.length < targetCount) {
-      flashcards.push({
-        id: flashcards.length + 1,
-        question: `What is the significance of "${term.term}" in this context?`,
-        answer: term.context,
-        category: 'Key Term'
-      });
-    }
-  });
+  // If we don't have enough quality content, create some from key sentences
+  if (flashcards.length < Math.floor(targetCount * 0.6)) {
+    const keyInfo = extractKeyInformation(sentences);
+    keyInfo.forEach(info => {
+      if (flashcards.length < targetCount) {
+        flashcards.push({
+          id: flashcards.length + 1,
+          question: info.question,
+          answer: info.answer,
+          category: info.category
+        });
+      }
+    });
+  }
   
   return flashcards.slice(0, targetCount);
 };
@@ -125,137 +49,24 @@ export const generateQuizQuestions = (text: string): QuizQuestion[] => {
   const cleanText = text.replace(/\s+/g, ' ').trim();
   
   // Target count based on content length
-  const targetCount = Math.min(Math.max(8, Math.floor(text.length / 1000)), 20);
+  const targetCount = Math.min(Math.max(6, Math.floor(text.length / 800)), 15);
   
-  // Extract different types of content for quiz questions
-  const definitions = extractDefinitions(cleanText);
-  const concepts = extractConcepts(cleanText);
-  const processes = extractProcesses(cleanText);
-  const facts = extractFactualStatements(cleanText);
-  const relationships = extractRelationships(cleanText);
-  const principles = extractPrinciples(cleanText);
-  const comparisons = extractComparisons(cleanText);
-  const applications = extractApplications(cleanText);
+  // Extract quiz-worthy content from the document
+  const quizContent = extractQuizContent(cleanText);
   
-  // Generate definition-based questions
-  definitions.forEach((def, index) => {
+  // Generate quiz questions from extracted content
+  quizContent.forEach((content, index) => {
     if (questions.length < targetCount) {
-      const incorrectOptions = generateDefinitionDistractors(def.definition, definitions);
-      const options = shuffleArray([def.definition, ...incorrectOptions]);
-      const correctAnswer = options.indexOf(def.definition);
+      const options = [content.correctAnswer, ...content.distractors];
+      const shuffledOptions = shuffleArray(options);
+      const correctIndex = shuffledOptions.indexOf(content.correctAnswer);
       
       questions.push({
         id: questions.length + 1,
-        question: `Which of the following best defines "${def.term}"?`,
-        options,
-        correctAnswer,
-        explanation: `${def.term} is correctly defined as: ${def.definition}. This definition captures the essential characteristics and distinguishes it from related concepts.`
-      });
-    }
-  });
-  
-  // Generate concept understanding questions
-  concepts.forEach((concept, index) => {
-    if (questions.length < targetCount) {
-      const incorrectOptions = generateConceptDistractors(concept.explanation, concepts);
-      const options = shuffleArray([concept.explanation, ...incorrectOptions]);
-      const correctAnswer = options.indexOf(concept.explanation);
-      
-      questions.push({
-        id: questions.length + 1,
-        question: `What is the main idea behind ${concept.name}?`,
-        options,
-        correctAnswer,
-        explanation: `The concept of ${concept.name} is best understood as: ${concept.explanation}. This explanation highlights the core principles and practical implications.`
-      });
-    }
-  });
-  
-  // Generate process-based questions
-  processes.forEach((process, index) => {
-    if (questions.length < targetCount) {
-      const steps = extractProcessSteps(process.description);
-      if (steps.length >= 2) {
-        const correctStep = steps[0];
-        const incorrectOptions = generateProcessDistractors(correctStep, steps, processes);
-        const options = shuffleArray([correctStep, ...incorrectOptions]);
-        const correctAnswer = options.indexOf(correctStep);
-        
-        questions.push({
-          id: questions.length + 1,
-          question: `What is the first step in ${process.name}?`,
-          options,
-          correctAnswer,
-          explanation: `The process of ${process.name} begins with: ${correctStep}. This initial step is crucial because it establishes the foundation for subsequent actions.`
-        });
-      }
-    }
-  });
-  
-  // Generate relationship questions
-  relationships.forEach((rel, index) => {
-    if (questions.length < targetCount) {
-      const incorrectOptions = generateRelationshipDistractors(rel.relationship, relationships);
-      const options = shuffleArray([rel.relationship, ...incorrectOptions]);
-      const correctAnswer = options.indexOf(rel.relationship);
-      
-      questions.push({
-        id: questions.length + 1,
-        question: `How are ${rel.entity1} and ${rel.entity2} related?`,
-        options,
-        correctAnswer,
-        explanation: `The relationship between ${rel.entity1} and ${rel.entity2} is: ${rel.relationship}. Understanding this connection is important for grasping the broader context.`
-      });
-    }
-  });
-  
-  // Generate application questions
-  applications.forEach((app, index) => {
-    if (questions.length < targetCount) {
-      const incorrectOptions = generateApplicationDistractors(app.application, applications);
-      const options = shuffleArray([app.application, ...incorrectOptions]);
-      const correctAnswer = options.indexOf(app.application);
-      
-      questions.push({
-        id: questions.length + 1,
-        question: `How can ${app.concept} be applied in practice?`,
-        options,
-        correctAnswer,
-        explanation: `${app.concept} can be practically applied through: ${app.application}. This application demonstrates the real-world relevance and utility of the concept.`
-      });
-    }
-  });
-  
-  // Generate principle-based questions
-  principles.forEach((principle, index) => {
-    if (questions.length < targetCount) {
-      const incorrectOptions = generatePrincipleDistractors(principle.principle, principles);
-      const options = shuffleArray([principle.principle, ...incorrectOptions]);
-      const correctAnswer = options.indexOf(principle.principle);
-      
-      questions.push({
-        id: questions.length + 1,
-        question: `What principle governs ${principle.topic}?`,
-        options,
-        correctAnswer,
-        explanation: `The governing principle for ${principle.topic} is: ${principle.principle}. This principle provides the theoretical foundation and guides practical implementation.`
-      });
-    }
-  });
-  
-  // Generate comparison questions
-  comparisons.forEach((comp, index) => {
-    if (questions.length < targetCount) {
-      const incorrectOptions = generateComparisonDistractors(comp.comparison, comparisons);
-      const options = shuffleArray([comp.comparison, ...incorrectOptions]);
-      const correctAnswer = options.indexOf(comp.comparison);
-      
-      questions.push({
-        id: questions.length + 1,
-        question: `What is the key difference between ${comp.item1} and ${comp.item2}?`,
-        options,
-        correctAnswer,
-        explanation: `The key difference is: ${comp.comparison}. This distinction is important for understanding when and how to apply each concept appropriately.`
+        question: content.question,
+        options: shuffledOptions,
+        correctAnswer: correctIndex,
+        explanation: content.explanation
       });
     }
   });
@@ -263,680 +74,504 @@ export const generateQuizQuestions = (text: string): QuizQuestion[] => {
   return questions.slice(0, targetCount);
 };
 
-// Enhanced extraction functions with better pattern recognition
-
-const extractDefinitions = (text: string): { term: string; definition: string }[] => {
-  const definitions: { term: string; definition: string }[] = [];
-  const sentences = text.split(/[.!?]+/);
+// Extract meaningful content for flashcards
+const extractMeaningfulContent = (text: string): Array<{question: string, answer: string, category: string}> => {
+  const content: Array<{question: string, answer: string, category: string}> = [];
+  const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 20);
   
-  const definitionPatterns = [
-    /(.+?)\s+is\s+defined\s+as\s+(.+)/i,
-    /(.+?)\s+refers\s+to\s+(.+)/i,
-    /(.+?)\s+means\s+(.+)/i,
-    /(.+?):\s+(.+)/i,
-    /(.+?)\s+is\s+(.+)/i,
-    /(.+?)\s+can\s+be\s+described\s+as\s+(.+)/i,
-    /(.+?)\s+represents\s+(.+)/i,
-    /(.+?)\s+involves\s+(.+)/i,
-    /(.+?)\s+consists\s+of\s+(.+)/i,
-    /(.+?)\s+encompasses\s+(.+)/i,
-    /(.+?)\s+denotes\s+(.+)/i,
-    /(.+?)\s+signifies\s+(.+)/i
-  ];
-  
+  // 1. Extract definitions and explanations
   sentences.forEach(sentence => {
-    for (const pattern of definitionPatterns) {
-      const match = sentence.match(pattern);
-      if (match && match[1] && match[2]) {
-        const term = match[1].trim().replace(/^(The|A|An)\s+/i, '');
-        const definition = match[2].trim();
-        
-        if (term.length > 2 && term.length < 80 && 
-            definition.length > 20 && definition.length < 400 &&
-            !term.includes('this') && !term.includes('that') &&
-            !definition.toLowerCase().includes('undefined') &&
-            !isGenericTerm(term)) {
-          definitions.push({ term, definition });
-          break;
-        }
+    const trimmed = sentence.trim();
+    
+    // Pattern: "X is Y" or "X means Y" or "X refers to Y"
+    const definitionMatch = trimmed.match(/^(.+?)\s+(?:is|means|refers to|represents|denotes)\s+(.+)$/i);
+    if (definitionMatch && definitionMatch[1].length < 100 && definitionMatch[2].length > 15) {
+      const term = definitionMatch[1].trim().replace(/^(The|A|An)\s+/i, '');
+      const definition = definitionMatch[2].trim();
+      
+      if (!isGenericContent(term) && !isGenericContent(definition)) {
+        content.push({
+          question: `What is ${term}?`,
+          answer: definition,
+          category: 'Definition'
+        });
+      }
+    }
+    
+    // Pattern: "X involves Y" or "X includes Y" or "X consists of Y"
+    const processMatch = trimmed.match(/^(.+?)\s+(?:involves|includes|consists of|comprises|contains)\s+(.+)$/i);
+    if (processMatch && processMatch[1].length < 80 && processMatch[2].length > 20) {
+      const subject = processMatch[1].trim().replace(/^(The|A|An)\s+/i, '');
+      const process = processMatch[2].trim();
+      
+      if (!isGenericContent(subject) && !isGenericContent(process)) {
+        content.push({
+          question: `What does ${subject} involve?`,
+          answer: process,
+          category: 'Process'
+        });
+      }
+    }
+    
+    // Pattern: "X causes Y" or "X results in Y" or "X leads to Y"
+    const causeMatch = trimmed.match(/^(.+?)\s+(?:causes|results in|leads to|produces|creates)\s+(.+)$/i);
+    if (causeMatch && causeMatch[1].length < 80 && causeMatch[2].length > 15) {
+      const cause = causeMatch[1].trim();
+      const effect = causeMatch[2].trim();
+      
+      if (!isGenericContent(cause) && !isGenericContent(effect)) {
+        content.push({
+          question: `What does ${cause} cause?`,
+          answer: effect,
+          category: 'Cause & Effect'
+        });
+      }
+    }
+    
+    // Pattern: "X can be used for Y" or "X is used to Y"
+    const purposeMatch = trimmed.match(/^(.+?)\s+(?:can be used for|is used to|is used for|serves to|helps to)\s+(.+)$/i);
+    if (purposeMatch && purposeMatch[1].length < 80 && purposeMatch[2].length > 15) {
+      const tool = purposeMatch[1].trim().replace(/^(The|A|An)\s+/i, '');
+      const purpose = purposeMatch[2].trim();
+      
+      if (!isGenericContent(tool) && !isGenericContent(purpose)) {
+        content.push({
+          question: `What is ${tool} used for?`,
+          answer: purpose,
+          category: 'Application'
+        });
+      }
+    }
+    
+    // Pattern: "X has Y characteristics/properties/features"
+    const characteristicMatch = trimmed.match(/^(.+?)\s+(?:has|have|possesses|exhibits|displays)\s+(.+?)\s+(?:characteristics|properties|features|attributes|qualities)$/i);
+    if (characteristicMatch && characteristicMatch[1].length < 80 && characteristicMatch[2].length > 10) {
+      const subject = characteristicMatch[1].trim().replace(/^(The|A|An)\s+/i, '');
+      const characteristics = characteristicMatch[2].trim();
+      
+      if (!isGenericContent(subject) && !isGenericContent(characteristics)) {
+        content.push({
+          question: `What characteristics does ${subject} have?`,
+          answer: `${characteristics} characteristics`,
+          category: 'Characteristics'
+        });
       }
     }
   });
   
-  return definitions.slice(0, 12);
-};
-
-const extractConcepts = (text: string): { name: string; explanation: string }[] => {
-  const concepts: { name: string; explanation: string }[] = [];
-  const sentences = text.split(/[.!?]+/);
-  
-  const conceptPatterns = [
-    /The\s+concept\s+of\s+(.+?)\s+(.+)/i,
-    /(.+?)\s+concept\s+(.+)/i,
-    /(.+?)\s+theory\s+(.+)/i,
-    /(.+?)\s+principle\s+(.+)/i,
-    /(.+?)\s+approach\s+(.+)/i,
-    /(.+?)\s+methodology\s+(.+)/i,
-    /(.+?)\s+framework\s+(.+)/i,
-    /(.+?)\s+model\s+(.+)/i
-  ];
-  
+  // 2. Extract key facts from longer sentences
   sentences.forEach(sentence => {
-    for (const pattern of conceptPatterns) {
-      const match = sentence.match(pattern);
-      if (match && match[1] && match[2]) {
-        const name = match[1].trim();
-        const explanation = match[2].trim();
-        
-        if (name.length > 3 && name.length < 60 && 
-            explanation.length > 25 && explanation.length < 300 &&
-            !isGenericTerm(name)) {
-          concepts.push({ name, explanation });
-          break;
-        }
-      }
-    }
-  });
-  
-  return concepts.slice(0, 8);
-};
-
-const extractProcesses = (text: string): { name: string; description: string }[] => {
-  const processes: { name: string; description: string }[] = [];
-  const sentences = text.split(/[.!?]+/);
-  
-  const processPatterns = [
-    /(.+?)\s+process\s+(?:involves|includes|consists of|requires|begins with)\s+(.+)/i,
-    /(?:The|A)\s+(.+?)\s+method\s+(.+)/i,
-    /(?:To|In order to)\s+(.+?),\s+(.+)/i,
-    /(.+?)\s+procedure\s+(.+)/i,
-    /(.+?)\s+algorithm\s+(.+)/i,
-    /(.+?)\s+workflow\s+(.+)/i,
-    /(.+?)\s+sequence\s+(.+)/i,
-    /(.+?)\s+steps\s+(.+)/i
-  ];
-  
-  sentences.forEach(sentence => {
-    for (const pattern of processPatterns) {
-      const match = sentence.match(pattern);
-      if (match && match[1] && match[2]) {
-        const name = match[1].trim();
-        const description = match[2].trim();
-        
-        if (name.length > 5 && name.length < 80 && 
-            description.length > 30 && description.length < 500) {
-          processes.push({ name, description });
-          break;
-        }
-      }
-    }
-  });
-  
-  return processes.slice(0, 6);
-};
-
-const extractRelationships = (text: string): { entity1: string; entity2: string; relationship: string }[] => {
-  const relationships: { entity1: string; entity2: string; relationship: string }[] = [];
-  const sentences = text.split(/[.!?]+/);
-  
-  const relationshipPatterns = [
-    /(.+?)\s+(?:affects|influences|impacts|determines)\s+(.+?)\s+(?:by|through|via)\s+(.+)/i,
-    /(.+?)\s+(?:relates to|connects to|links to)\s+(.+?)\s+(?:through|via|by)\s+(.+)/i,
-    /(.+?)\s+and\s+(.+?)\s+(?:are related|interact|work together)\s+(.+)/i,
-    /(?:The relationship between|The connection between)\s+(.+?)\s+and\s+(.+?)\s+(?:is|involves)\s+(.+)/i
-  ];
-  
-  sentences.forEach(sentence => {
-    for (const pattern of relationshipPatterns) {
-      const match = sentence.match(pattern);
-      if (match && match[1] && match[2] && match[3]) {
-        const entity1 = match[1].trim();
-        const entity2 = match[2].trim();
-        const relationship = match[3].trim();
-        
-        if (entity1.length > 3 && entity1.length < 60 && 
-            entity2.length > 3 && entity2.length < 60 &&
-            relationship.length > 15 && relationship.length < 200) {
-          relationships.push({ entity1, entity2, relationship });
-          break;
-        }
-      }
-    }
-  });
-  
-  return relationships.slice(0, 5);
-};
-
-const extractExamples = (text: string): { concept: string; example: string }[] => {
-  const examples: { concept: string; example: string }[] = [];
-  const sentences = text.split(/[.!?]+/);
-  
-  const examplePatterns = [
-    /(?:For example|For instance),\s+(.+)/i,
-    /(.+?)\s+(?:such as|including|like)\s+(.+)/i,
-    /(?:An example of|Examples of)\s+(.+?)\s+(?:is|are|include)\s+(.+)/i,
-    /(.+?)\s+can be illustrated by\s+(.+)/i
-  ];
-  
-  sentences.forEach(sentence => {
-    for (const pattern of examplePatterns) {
-      const match = sentence.match(pattern);
-      if (match && match[1] && match[2]) {
-        const concept = match[1].trim();
-        const example = match[2].trim();
-        
-        if (concept.length > 5 && concept.length < 80 && 
-            example.length > 15 && example.length < 300) {
-          examples.push({ concept, example });
-          break;
-        }
-      }
-    }
-  });
-  
-  return examples.slice(0, 4);
-};
-
-const extractPrinciples = (text: string): { topic: string; principle: string }[] => {
-  const principles: { topic: string; principle: string }[] = [];
-  const sentences = text.split(/[.!?]+/);
-  
-  const principlePatterns = [
-    /(?:The principle of|The law of|The rule of)\s+(.+?)\s+(?:states|dictates|requires)\s+(.+)/i,
-    /(.+?)\s+(?:is governed by|follows|adheres to)\s+(?:the principle|the law|the rule)\s+(.+)/i,
-    /(?:According to|Based on)\s+(.+?),\s+(.+)/i
-  ];
-  
-  sentences.forEach(sentence => {
-    for (const pattern of principlePatterns) {
-      const match = sentence.match(pattern);
-      if (match && match[1] && match[2]) {
-        const topic = match[1].trim();
-        const principle = match[2].trim();
-        
-        if (topic.length > 5 && topic.length < 80 && 
-            principle.length > 20 && principle.length < 300) {
-          principles.push({ topic, principle });
-          break;
-        }
-      }
-    }
-  });
-  
-  return principles.slice(0, 4);
-};
-
-const extractComparisons = (text: string): { item1: string; item2: string; comparison: string }[] => {
-  const comparisons: { item1: string; item2: string; comparison: string }[] = [];
-  const sentences = text.split(/[.!?]+/);
-  
-  const comparisonPatterns = [
-    /(.+?)\s+(?:differs from|is different from|contrasts with)\s+(.+?)\s+(?:in that|because)\s+(.+)/i,
-    /(?:Unlike|In contrast to)\s+(.+?),\s+(.+?)\s+(.+)/i,
-    /(.+?)\s+(?:while|whereas)\s+(.+?)\s+(.+)/i,
-    /(.+?)\s+and\s+(.+?)\s+(?:differ|vary)\s+(?:in|by)\s+(.+)/i,
-    /(?:The difference between|The distinction between)\s+(.+?)\s+and\s+(.+?)\s+(?:is|lies in)\s+(.+)/i
-  ];
-  
-  sentences.forEach(sentence => {
-    for (const pattern of comparisonPatterns) {
-      const match = sentence.match(pattern);
-      if (match && match[1] && match[2] && match[3]) {
-        const item1 = match[1].trim();
-        const item2 = match[2].trim();
-        const comparison = match[3].trim();
-        
-        if (item1.length > 3 && item2.length > 3 && comparison.length > 15) {
-          comparisons.push({ item1, item2, comparison });
-          break;
-        }
-      }
-    }
-  });
-  
-  return comparisons.slice(0, 3);
-};
-
-const extractApplications = (text: string): { concept: string; application: string }[] => {
-  const applications: { concept: string; application: string }[] = [];
-  const sentences = text.split(/[.!?]+/);
-  
-  const applicationPatterns = [
-    /(.+?)\s+(?:can be applied|is applied|is used)\s+(?:in|for|to)\s+(.+)/i,
-    /(?:Applications of|Uses of)\s+(.+?)\s+include\s+(.+)/i,
-    /(.+?)\s+(?:is useful for|helps with|enables)\s+(.+)/i,
-    /(?:In practice|Practically),\s+(.+?)\s+(.+)/i
-  ];
-  
-  sentences.forEach(sentence => {
-    for (const pattern of applicationPatterns) {
-      const match = sentence.match(pattern);
-      if (match && match[1] && match[2]) {
-        const concept = match[1].trim();
-        const application = match[2].trim();
-        
-        if (concept.length > 5 && concept.length < 80 && 
-            application.length > 15 && application.length < 300) {
-          applications.push({ concept, application });
-          break;
-        }
-      }
-    }
-  });
-  
-  return applications.slice(0, 4);
-};
-
-const extractKeyTerms = (text: string): { term: string; context: string }[] => {
-  const terms: { term: string; context: string }[] = [];
-  const sentences = text.split(/[.!?]+/);
-  
-  // Look for capitalized terms, technical terms, and quoted terms
-  const technicalPatterns = [
-    /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\b/g,
-    /\b([a-z]+(?:tion|sion|ment|ness|ity|ism|ology|graphy|ics|ing))\b/gi,
-    /"([^"]+)"/g,
-    /\*([^*]+)\*/g,
-    /\b([A-Z]{2,})\b/g
-  ];
-  
-  sentences.forEach(sentence => {
-    if (sentence.length > 50) {
-      technicalPatterns.forEach(pattern => {
-        const matches = sentence.matchAll(pattern);
-        for (const match of matches) {
-          const term = match[1];
-          if (term && term.length > 3 && term.length < 50 && !isGenericTerm(term)) {
-            const context = sentence.trim().substring(0, 250);
-            if (context.length > 40) {
-              terms.push({ term, context });
-            }
+    const trimmed = sentence.trim();
+    if (trimmed.length > 60 && trimmed.length < 200) {
+      // Look for sentences with specific numbers, dates, or important facts
+      if (/\b(?:\d+%|\d+\s+(?:years?|months?|days?|hours?)|19\d{2}|20\d{2}|\$\d+|\d+\s+(?:million|billion|thousand))\b/i.test(trimmed)) {
+        // Extract the key fact
+        const factMatch = trimmed.match(/^(.+?)\s+(?:was|were|is|are|has|have|contains|includes)\s+(.+)$/i);
+        if (factMatch && factMatch[1].length < 60 && factMatch[2].length > 10) {
+          const subject = factMatch[1].trim();
+          const fact = factMatch[2].trim();
+          
+          if (!isGenericContent(subject)) {
+            content.push({
+              question: `What fact is mentioned about ${subject}?`,
+              answer: fact,
+              category: 'Fact'
+            });
           }
         }
-      });
+      }
     }
   });
   
-  // Remove duplicates and return top terms
-  const uniqueTerms = terms.filter((term, index, self) => 
-    index === self.findIndex(t => t.term.toLowerCase() === term.term.toLowerCase())
-  );
+  // 3. Extract comparisons
+  sentences.forEach(sentence => {
+    const trimmed = sentence.trim();
+    
+    // Pattern: "Unlike X, Y does Z" or "While X does Y, Z does W"
+    const comparisonMatch = trimmed.match(/^(?:Unlike|While|Whereas)\s+(.+?),\s+(.+)$/i);
+    if (comparisonMatch && comparisonMatch[1].length < 80 && comparisonMatch[2].length > 15) {
+      const item1 = comparisonMatch[1].trim();
+      const comparison = comparisonMatch[2].trim();
+      
+      if (!isGenericContent(item1)) {
+        content.push({
+          question: `How does this differ from ${item1}?`,
+          answer: comparison,
+          category: 'Comparison'
+        });
+      }
+    }
+    
+    // Pattern: "X is different from Y because Z"
+    const differenceMatch = trimmed.match(/^(.+?)\s+(?:is different from|differs from|contrasts with)\s+(.+?)\s+because\s+(.+)$/i);
+    if (differenceMatch && differenceMatch[1].length < 60 && differenceMatch[3].length > 15) {
+      const item1 = differenceMatch[1].trim();
+      const item2 = differenceMatch[2].trim();
+      const reason = differenceMatch[3].trim();
+      
+      if (!isGenericContent(item1) && !isGenericContent(item2)) {
+        content.push({
+          question: `How does ${item1} differ from ${item2}?`,
+          answer: reason,
+          category: 'Comparison'
+        });
+      }
+    }
+  });
   
-  return uniqueTerms.slice(0, 8);
+  return content;
 };
 
-const extractFactualStatements = (text: string): { question: string; answer: string }[] => {
-  const facts: { question: string; answer: string }[] = [];
-  const sentences = text.split(/[.!?]+/);
+// Extract content suitable for quiz questions
+const extractQuizContent = (text: string): Array<{question: string, correctAnswer: string, distractors: string[], explanation: string}> => {
+  const content: Array<{question: string, correctAnswer: string, distractors: string[], explanation: string}> = [];
+  const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 20);
+  
+  // 1. Extract factual information for quiz questions
+  sentences.forEach(sentence => {
+    const trimmed = sentence.trim();
+    
+    // Pattern: "X is Y" - create "What is X?" question
+    const definitionMatch = trimmed.match(/^(.+?)\s+is\s+(.+)$/i);
+    if (definitionMatch && definitionMatch[1].length < 80 && definitionMatch[2].length > 15 && definitionMatch[2].length < 150) {
+      const term = definitionMatch[1].trim().replace(/^(The|A|An)\s+/i, '');
+      const definition = definitionMatch[2].trim();
+      
+      if (!isGenericContent(term) && !isGenericContent(definition)) {
+        const distractors = generateContextualDistractors(definition, text, 'definition');
+        content.push({
+          question: `What is ${term}?`,
+          correctAnswer: definition,
+          distractors: distractors,
+          explanation: `${term} is defined as ${definition}. This is explicitly stated in the document.`
+        });
+      }
+    }
+    
+    // Pattern: "X does Y" or "X performs Y" - create "What does X do?" question
+    const actionMatch = trimmed.match(/^(.+?)\s+(?:does|performs|executes|carries out|accomplishes)\s+(.+)$/i);
+    if (actionMatch && actionMatch[1].length < 80 && actionMatch[2].length > 15) {
+      const actor = actionMatch[1].trim().replace(/^(The|A|An)\s+/i, '');
+      const action = actionMatch[2].trim();
+      
+      if (!isGenericContent(actor) && !isGenericContent(action)) {
+        const distractors = generateContextualDistractors(action, text, 'action');
+        content.push({
+          question: `What does ${actor} do?`,
+          correctAnswer: action,
+          distractors: distractors,
+          explanation: `According to the document, ${actor} ${action}.`
+        });
+      }
+    }
+    
+    // Pattern: "X has Y" - create "What does X have?" question
+    const hasMatch = trimmed.match(/^(.+?)\s+(?:has|have|possesses|contains|includes)\s+(.+)$/i);
+    if (hasMatch && hasMatch[1].length < 80 && hasMatch[2].length > 15 && hasMatch[2].length < 120) {
+      const subject = hasMatch[1].trim().replace(/^(The|A|An)\s+/i, '');
+      const object = hasMatch[2].trim();
+      
+      if (!isGenericContent(subject) && !isGenericContent(object)) {
+        const distractors = generateContextualDistractors(object, text, 'possession');
+        content.push({
+          question: `What does ${subject} have?`,
+          correctAnswer: object,
+          distractors: distractors,
+          explanation: `The document states that ${subject} has ${object}.`
+        });
+      }
+    }
+    
+    // Pattern: "X occurs when Y" or "X happens when Y" - create "When does X occur?" question
+    const conditionMatch = trimmed.match(/^(.+?)\s+(?:occurs|happens|takes place)\s+when\s+(.+)$/i);
+    if (conditionMatch && conditionMatch[1].length < 80 && conditionMatch[2].length > 15) {
+      const event = conditionMatch[1].trim().replace(/^(The|A|An)\s+/i, '');
+      const condition = conditionMatch[2].trim();
+      
+      if (!isGenericContent(event) && !isGenericContent(condition)) {
+        const distractors = generateContextualDistractors(condition, text, 'condition');
+        content.push({
+          question: `When does ${event} occur?`,
+          correctAnswer: `when ${condition}`,
+          distractors: distractors,
+          explanation: `According to the document, ${event} occurs when ${condition}.`
+        });
+      }
+    }
+    
+    // Pattern: "X is located in Y" or "X can be found in Y" - create "Where is X located?" question
+    const locationMatch = trimmed.match(/^(.+?)\s+(?:is located in|can be found in|exists in|is situated in)\s+(.+)$/i);
+    if (locationMatch && locationMatch[1].length < 80 && locationMatch[2].length > 10) {
+      const item = locationMatch[1].trim().replace(/^(The|A|An)\s+/i, '');
+      const location = locationMatch[2].trim();
+      
+      if (!isGenericContent(item) && !isGenericContent(location)) {
+        const distractors = generateContextualDistractors(location, text, 'location');
+        content.push({
+          question: `Where is ${item} located?`,
+          correctAnswer: location,
+          distractors: distractors,
+          explanation: `The document indicates that ${item} is located in ${location}.`
+        });
+      }
+    }
+  });
+  
+  // 2. Extract numerical facts
+  sentences.forEach(sentence => {
+    const trimmed = sentence.trim();
+    
+    // Look for sentences with specific numbers
+    const numberMatch = trimmed.match(/^(.+?)\s+(?:is|are|was|were|contains|includes|has|have)\s+(.+?\b(?:\d+%|\d+\s+(?:years?|months?|days?|hours?|minutes?|seconds?)|19\d{2}|20\d{2}|\$\d+|\d+\s+(?:million|billion|thousand|hundred))\b.*)$/i);
+    if (numberMatch && numberMatch[1].length < 80 && numberMatch[2].length > 10) {
+      const subject = numberMatch[1].trim().replace(/^(The|A|An)\s+/i, '');
+      const numericalFact = numberMatch[2].trim();
+      
+      if (!isGenericContent(subject)) {
+        const distractors = generateNumericalDistractors(numericalFact);
+        content.push({
+          question: `What numerical fact is mentioned about ${subject}?`,
+          correctAnswer: numericalFact,
+          distractors: distractors,
+          explanation: `The document states that ${subject} ${numericalFact}.`
+        });
+      }
+    }
+  });
+  
+  return content;
+};
+
+// Extract key information from sentences for fallback flashcards
+const extractKeyInformation = (sentences: string[]): Array<{question: string, answer: string, category: string}> => {
+  const keyInfo: Array<{question: string, answer: string, category: string}> = [];
   
   sentences.forEach(sentence => {
     const trimmed = sentence.trim();
-    if (trimmed.length > 50 && trimmed.length < 250) {
-      // Look for factual statements with specific patterns
-      const factPatterns = [
-        /(.+?)\s+(?:was|were)\s+(.+)/i,
-        /(.+?)\s+(?:has|have)\s+(.+)/i,
-        /(.+?)\s+(?:contains|includes)\s+(.+)/i,
-        /(.+?)\s+(?:consists of|comprises)\s+(.+)/i,
-        /(.+?)\s+(?:shows|demonstrates|indicates)\s+(.+)/i,
-        /(.+?)\s+(?:results in|leads to|causes)\s+(.+)/i
+    if (trimmed.length > 40 && trimmed.length < 200) {
+      // Look for sentences that contain important information
+      if (containsImportantInfo(trimmed)) {
+        // Create a question based on the sentence structure
+        const subject = extractSubject(trimmed);
+        if (subject && subject.length > 3 && subject.length < 60) {
+          keyInfo.push({
+            question: `What is mentioned about ${subject}?`,
+            answer: trimmed,
+            category: 'Key Information'
+          });
+        }
+      }
+    }
+  });
+  
+  return keyInfo.slice(0, 8);
+};
+
+// Generate contextual distractors based on document content
+const generateContextualDistractors = (correctAnswer: string, fullText: string, type: string): string[] => {
+  const distractors: string[] = [];
+  const sentences = fullText.split(/[.!?]+/).filter(s => s.trim().length > 20);
+  
+  // Find similar content in the document to use as distractors
+  sentences.forEach(sentence => {
+    const trimmed = sentence.trim();
+    if (trimmed !== correctAnswer && trimmed.length > 15 && trimmed.length < 150) {
+      // Look for sentences with similar patterns based on type
+      let isRelevantDistractor = false;
+      
+      switch (type) {
+        case 'definition':
+          isRelevantDistractor = /\b(?:is|are|means|refers to|represents)\b/i.test(trimmed);
+          break;
+        case 'action':
+          isRelevantDistractor = /\b(?:does|performs|executes|carries out|accomplishes)\b/i.test(trimmed);
+          break;
+        case 'possession':
+          isRelevantDistractor = /\b(?:has|have|possesses|contains|includes)\b/i.test(trimmed);
+          break;
+        case 'condition':
+          isRelevantDistractor = /\b(?:when|if|during|while|as)\b/i.test(trimmed);
+          break;
+        case 'location':
+          isRelevantDistractor = /\b(?:in|at|on|within|inside|outside)\b/i.test(trimmed);
+          break;
+      }
+      
+      if (isRelevantDistractor && distractors.length < 3) {
+        // Extract the relevant part of the sentence
+        const relevantPart = extractRelevantPart(trimmed, type);
+        if (relevantPart && relevantPart !== correctAnswer && relevantPart.length > 10) {
+          distractors.push(relevantPart);
+        }
+      }
+    }
+  });
+  
+  // Fill remaining slots with generic but plausible distractors
+  while (distractors.length < 3) {
+    const genericDistractors = getGenericDistractors(type);
+    const randomDistractor = genericDistractors[Math.floor(Math.random() * genericDistractors.length)];
+    if (!distractors.includes(randomDistractor)) {
+      distractors.push(randomDistractor);
+    }
+  }
+  
+  return distractors.slice(0, 3);
+};
+
+// Generate numerical distractors
+const generateNumericalDistractors = (correctAnswer: string): string[] => {
+  const distractors: string[] = [];
+  
+  // Extract numbers from the correct answer
+  const numbers = correctAnswer.match(/\d+/g);
+  if (numbers) {
+    numbers.forEach(num => {
+      const value = parseInt(num);
+      // Create variations of the number
+      const variations = [
+        correctAnswer.replace(num, String(Math.floor(value * 0.8))),
+        correctAnswer.replace(num, String(Math.floor(value * 1.2))),
+        correctAnswer.replace(num, String(Math.floor(value * 0.5)))
       ];
       
-      for (const pattern of factPatterns) {
-        const match = trimmed.match(pattern);
-        if (match && match[1] && match[2]) {
-          const subject = match[1].trim();
-          const predicate = match[2].trim();
-          
-          if (subject.length > 5 && predicate.length > 10 && !isGenericTerm(subject)) {
-            const verb = match[0].includes('was') ? 'was' : 
-                        match[0].includes('were') ? 'were' : 
-                        match[0].includes('has') ? 'has' : 
-                        match[0].includes('have') ? 'have' : 
-                        match[0].includes('contains') ? 'contains' : 
-                        match[0].includes('includes') ? 'includes' : 
-                        match[0].includes('consists') ? 'consists of' : 
-                        match[0].includes('comprises') ? 'comprises' :
-                        match[0].includes('shows') ? 'shows' :
-                        match[0].includes('demonstrates') ? 'demonstrates' :
-                        match[0].includes('indicates') ? 'indicates' :
-                        match[0].includes('results') ? 'results in' :
-                        match[0].includes('leads') ? 'leads to' : 'causes';
-            
-            facts.push({
-              question: `What ${verb} ${subject}?`,
-              answer: `${subject} ${verb} ${predicate}`
-            });
-            break;
-          }
+      variations.forEach(variation => {
+        if (variation !== correctAnswer && distractors.length < 3) {
+          distractors.push(variation);
         }
-      }
-    }
-  });
-  
-  return facts.slice(0, 8);
-};
-
-// Enhanced distractor generation functions
-
-const generateDefinitionDistractors = (correctAnswer: string, allDefinitions: { term: string; definition: string }[]): string[] => {
-  const options: string[] = [];
-  
-  // Use other definitions as distractors
-  const otherDefinitions = allDefinitions
-    .filter(def => def.definition !== correctAnswer)
-    .map(def => def.definition)
-    .slice(0, 2);
-  
-  options.push(...otherDefinitions);
-  
-  // Generate plausible but incorrect variations
-  if (options.length < 3) {
-    const words = correctAnswer.split(' ');
-    if (words.length > 6) {
-      // Create variations by changing key terms
-      const variation1 = words.map((word, index) => {
-        if (index === Math.floor(words.length / 3)) {
-          return getAlternativeWord(word);
-        }
-        return word;
-      }).join(' ');
-      
-      const variation2 = words.map((word, index) => {
-        if (index === Math.floor(words.length * 2 / 3)) {
-          return getAlternativeWord(word);
-        }
-        return word;
-      }).join(' ');
-      
-      options.push(variation1, variation2);
-    }
-  }
-  
-  // Add generic distractors if needed
-  while (options.length < 3) {
-    const genericOptions = [
-      'A systematic approach to organizing and managing complex information structures',
-      'A methodological framework for analyzing and interpreting data patterns',
-      'A comprehensive strategy for optimizing performance and efficiency metrics',
-      'A theoretical model for understanding relationships between variables'
-    ];
-    
-    const randomOption = genericOptions[Math.floor(Math.random() * genericOptions.length)];
-    if (!options.includes(randomOption)) {
-      options.push(randomOption);
-    }
-  }
-  
-  return options.slice(0, 3);
-};
-
-const generateConceptDistractors = (correctAnswer: string, allConcepts: { name: string; explanation: string }[]): string[] => {
-  const options: string[] = [];
-  
-  // Use other concept explanations
-  const otherExplanations = allConcepts
-    .filter(concept => concept.explanation !== correctAnswer)
-    .map(concept => concept.explanation)
-    .slice(0, 2);
-  
-  options.push(...otherExplanations);
-  
-  // Generate conceptual variations
-  while (options.length < 3) {
-    const conceptualDistractors = [
-      'A fundamental principle that governs the interaction between different system components',
-      'An abstract framework that provides structure for understanding complex relationships',
-      'A theoretical construct that explains the underlying mechanisms of observed phenomena',
-      'A conceptual model that integrates multiple perspectives into a unified understanding'
-    ];
-    
-    const randomDistractor = conceptualDistractors[Math.floor(Math.random() * conceptualDistractors.length)];
-    if (!options.includes(randomDistractor)) {
-      options.push(randomDistractor);
-    }
-  }
-  
-  return options.slice(0, 3);
-};
-
-const generateProcessDistractors = (correctStep: string, allSteps: string[], allProcesses: { name: string; description: string }[]): string[] => {
-  const options: string[] = [];
-  
-  // Use other steps as distractors
-  const otherSteps = allSteps.filter(step => step !== correctStep).slice(0, 1);
-  options.push(...otherSteps);
-  
-  // Use steps from other processes
-  allProcesses.forEach(process => {
-    const steps = extractProcessSteps(process.description);
-    steps.forEach(step => {
-      if (step !== correctStep && options.length < 2) {
-        options.push(step);
-      }
+      });
     });
-  });
+  }
   
-  // Generate plausible process steps
-  while (options.length < 3) {
-    const processDistractors = [
-      'Establish initial parameters and configure system settings',
-      'Validate input data and perform preliminary checks',
-      'Execute primary algorithms and process core functions',
-      'Generate output results and perform quality assurance',
-      'Document findings and prepare final reports'
+  // Fill with generic numerical distractors if needed
+  while (distractors.length < 3) {
+    const genericNumerical = [
+      'approximately 50% of the total amount',
+      'between 10 and 20 units on average',
+      'roughly 75% of the maximum capacity',
+      'around 100 units per standard measurement'
     ];
     
-    const randomDistractor = processDistractors[Math.floor(Math.random() * processDistractors.length)];
-    if (!options.includes(randomDistractor)) {
-      options.push(randomDistractor);
+    const randomDistractor = genericNumerical[Math.floor(Math.random() * genericNumerical.length)];
+    if (!distractors.includes(randomDistractor)) {
+      distractors.push(randomDistractor);
     }
   }
   
-  return options.slice(0, 3);
-};
-
-const generateRelationshipDistractors = (correctRelationship: string, allRelationships: { entity1: string; entity2: string; relationship: string }[]): string[] => {
-  const options: string[] = [];
-  
-  // Use other relationships as distractors
-  const otherRelationships = allRelationships
-    .filter(rel => rel.relationship !== correctRelationship)
-    .map(rel => rel.relationship)
-    .slice(0, 2);
-  
-  options.push(...otherRelationships);
-  
-  // Generate relationship variations
-  while (options.length < 3) {
-    const relationshipDistractors = [
-      'They operate independently without any significant interaction or influence',
-      'They have a complementary relationship that enhances mutual effectiveness',
-      'They compete for the same resources and often conflict with each other',
-      'They form a hierarchical structure with clear dependencies and control mechanisms'
-    ];
-    
-    const randomDistractor = relationshipDistractors[Math.floor(Math.random() * relationshipDistractors.length)];
-    if (!options.includes(randomDistractor)) {
-      options.push(randomDistractor);
-    }
-  }
-  
-  return options.slice(0, 3);
-};
-
-const generateApplicationDistractors = (correctApplication: string, allApplications: { concept: string; application: string }[]): string[] => {
-  const options: string[] = [];
-  
-  // Use other applications as distractors
-  const otherApplications = allApplications
-    .filter(app => app.application !== correctApplication)
-    .map(app => app.application)
-    .slice(0, 2);
-  
-  options.push(...otherApplications);
-  
-  // Generate application variations
-  while (options.length < 3) {
-    const applicationDistractors = [
-      'Primarily used for theoretical research and academic study purposes',
-      'Applied in specialized industrial processes requiring precise control',
-      'Implemented in educational settings to enhance learning outcomes',
-      'Utilized in healthcare systems for diagnostic and treatment purposes'
-    ];
-    
-    const randomDistractor = applicationDistractors[Math.floor(Math.random() * applicationDistractors.length)];
-    if (!options.includes(randomDistractor)) {
-      options.push(randomDistractor);
-    }
-  }
-  
-  return options.slice(0, 3);
-};
-
-const generatePrincipleDistractors = (correctPrinciple: string, allPrinciples: { topic: string; principle: string }[]): string[] => {
-  const options: string[] = [];
-  
-  // Use other principles as distractors
-  const otherPrinciples = allPrinciples
-    .filter(prin => prin.principle !== correctPrinciple)
-    .map(prin => prin.principle)
-    .slice(0, 2);
-  
-  options.push(...otherPrinciples);
-  
-  // Generate principle variations
-  while (options.length < 3) {
-    const principleDistractors = [
-      'The principle of maximum efficiency through resource optimization',
-      'The principle of balanced integration across multiple system levels',
-      'The principle of adaptive response to changing environmental conditions',
-      'The principle of sustainable development through controlled growth'
-    ];
-    
-    const randomDistractor = principleDistractors[Math.floor(Math.random() * principleDistractors.length)];
-    if (!options.includes(randomDistractor)) {
-      options.push(randomDistractor);
-    }
-  }
-  
-  return options.slice(0, 3);
-};
-
-const generateComparisonDistractors = (correctComparison: string, allComparisons: { item1: string; item2: string; comparison: string }[]): string[] => {
-  const options: string[] = [];
-  
-  // Use other comparisons as distractors
-  const otherComparisons = allComparisons
-    .filter(comp => comp.comparison !== correctComparison)
-    .map(comp => comp.comparison)
-    .slice(0, 2);
-  
-  options.push(...otherComparisons);
-  
-  // Generate comparison variations
-  while (options.length < 3) {
-    const comparisonDistractors = [
-      'They are essentially identical in function but differ in implementation approach',
-      'They serve completely different purposes and cannot be meaningfully compared',
-      'They represent opposite extremes of the same underlying concept or principle',
-      'They complement each other and work best when used in combination'
-    ];
-    
-    const randomDistractor = comparisonDistractors[Math.floor(Math.random() * comparisonDistractors.length)];
-    if (!options.includes(randomDistractor)) {
-      options.push(randomDistractor);
-    }
-  }
-  
-  return options.slice(0, 3);
+  return distractors.slice(0, 3);
 };
 
 // Helper functions
-
-const extractProcessSteps = (description: string): string[] => {
-  const steps: string[] = [];
-  
-  // Look for numbered steps
-  const numberedSteps = description.match(/\d+\.\s*([^.]+)/g);
-  if (numberedSteps) {
-    steps.push(...numberedSteps.map(step => step.replace(/\d+\.\s*/, '').trim()));
-  }
-  
-  // Look for sequential indicators
-  const sequentialPatterns = [
-    /(?:first|initially|to begin),?\s*([^,;.]+)/gi,
-    /(?:then|next|subsequently),?\s*([^,;.]+)/gi,
-    /(?:finally|lastly|ultimately),?\s*([^,;.]+)/gi
+const isGenericContent = (content: string): boolean => {
+  const genericTerms = [
+    'this', 'that', 'these', 'those', 'it', 'they', 'them', 'something', 'anything',
+    'everything', 'nothing', 'someone', 'anyone', 'everyone', 'thing', 'things',
+    'way', 'ways', 'time', 'times', 'place', 'places', 'people', 'person'
   ];
   
-  sequentialPatterns.forEach(pattern => {
-    const matches = description.matchAll(pattern);
-    for (const match of matches) {
-      if (match[1] && match[1].trim().length > 10) {
-        steps.push(match[1].trim());
+  const lowerContent = content.toLowerCase();
+  return genericTerms.some(term => lowerContent.includes(term)) ||
+         content.length < 5 ||
+         /^[A-Z\s]+$/.test(content) ||
+         /^\d+$/.test(content);
+};
+
+const containsImportantInfo = (sentence: string): boolean => {
+  // Check for indicators of important information
+  const importantIndicators = [
+    /\b(?:important|significant|crucial|essential|key|main|primary|major)\b/i,
+    /\b(?:because|since|due to|as a result|therefore|thus|consequently)\b/i,
+    /\b(?:first|second|third|finally|lastly|initially|subsequently)\b/i,
+    /\b(?:\d+%|\d+\s+(?:years?|months?|days?)|19\d{2}|20\d{2}|\$\d+)\b/i,
+    /\b(?:always|never|must|should|required|necessary|essential)\b/i
+  ];
+  
+  return importantIndicators.some(pattern => pattern.test(sentence));
+};
+
+const extractSubject = (sentence: string): string | null => {
+  // Try to extract the main subject of the sentence
+  const subjectPatterns = [
+    /^(The\s+[^,]+?)(?:\s+is|\s+are|\s+was|\s+were|\s+has|\s+have|\s+does|\s+do)/i,
+    /^([A-Z][^,]+?)(?:\s+is|\s+are|\s+was|\s+were|\s+has|\s+have|\s+does|\s+do)/i,
+    /^([^,]+?)(?:\s+is|\s+are|\s+was|\s+were|\s+has|\s+have|\s+does|\s+do)/i
+  ];
+  
+  for (const pattern of subjectPatterns) {
+    const match = sentence.match(pattern);
+    if (match && match[1]) {
+      const subject = match[1].trim().replace(/^(The|A|An)\s+/i, '');
+      if (subject.length > 3 && subject.length < 60 && !isGenericContent(subject)) {
+        return subject;
       }
     }
-  });
-  
-  // Split by common delimiters if no structured steps found
-  if (steps.length === 0) {
-    const splitSteps = description.split(/[,;]/).map(s => s.trim()).filter(s => s.length > 15);
-    steps.push(...splitSteps.slice(0, 4));
   }
   
-  return steps.slice(0, 5);
+  return null;
 };
 
-const isGenericTerm = (term: string): boolean => {
-  const genericTerms = [
-    'this', 'that', 'these', 'those', 'it', 'they', 'them', 'here', 'there',
-    'something', 'anything', 'everything', 'nothing', 'someone', 'anyone',
-    'everyone', 'thing', 'things', 'way', 'ways', 'time', 'times', 'place',
-    'places', 'people', 'person', 'part', 'parts', 'system', 'systems',
-    'method', 'methods', 'process', 'processes', 'approach', 'approaches'
-  ];
-  
-  return genericTerms.includes(term.toLowerCase()) || 
-         term.length < 3 || 
-         /^\d+$/.test(term) ||
-         /^[A-Z]+$/.test(term) && term.length < 4;
+const extractRelevantPart = (sentence: string, type: string): string | null => {
+  switch (type) {
+    case 'definition':
+      const defMatch = sentence.match(/(?:is|are|means|refers to|represents)\s+(.+)$/i);
+      return defMatch ? defMatch[1].trim() : null;
+    
+    case 'action':
+      const actionMatch = sentence.match(/(?:does|performs|executes|carries out|accomplishes)\s+(.+)$/i);
+      return actionMatch ? actionMatch[1].trim() : null;
+    
+    case 'possession':
+      const possMatch = sentence.match(/(?:has|have|possesses|contains|includes)\s+(.+)$/i);
+      return possMatch ? possMatch[1].trim() : null;
+    
+    case 'condition':
+      const condMatch = sentence.match(/(?:when|if|during|while|as)\s+(.+)$/i);
+      return condMatch ? `when ${condMatch[1].trim()}` : null;
+    
+    case 'location':
+      const locMatch = sentence.match(/(?:in|at|on|within|inside|outside)\s+(.+)$/i);
+      return locMatch ? locMatch[1].trim() : null;
+    
+    default:
+      return sentence.length < 120 ? sentence : null;
+  }
 };
 
-const getAlternativeWord = (word: string): string => {
-  const alternatives: { [key: string]: string[] } = {
-    'system': ['framework', 'structure', 'mechanism', 'approach'],
-    'process': ['procedure', 'method', 'technique', 'workflow'],
-    'method': ['approach', 'technique', 'procedure', 'strategy'],
-    'approach': ['method', 'strategy', 'technique', 'way'],
-    'technique': ['method', 'approach', 'procedure', 'strategy'],
-    'strategy': ['approach', 'method', 'plan', 'technique'],
-    'framework': ['structure', 'system', 'model', 'approach'],
-    'structure': ['framework', 'system', 'organization', 'arrangement'],
-    'model': ['framework', 'system', 'structure', 'template'],
-    'concept': ['idea', 'notion', 'principle', 'theory'],
-    'principle': ['concept', 'rule', 'law', 'guideline'],
-    'theory': ['concept', 'principle', 'hypothesis', 'model'],
-    'analysis': ['examination', 'evaluation', 'assessment', 'study'],
-    'evaluation': ['assessment', 'analysis', 'examination', 'review'],
-    'assessment': ['evaluation', 'analysis', 'examination', 'appraisal'],
-    'implementation': ['execution', 'application', 'deployment', 'realization'],
-    'application': ['implementation', 'use', 'utilization', 'employment'],
-    'development': ['creation', 'formation', 'evolution', 'growth'],
-    'management': ['administration', 'control', 'supervision', 'governance'],
-    'organization': ['structure', 'arrangement', 'system', 'framework'],
-    'performance': ['effectiveness', 'efficiency', 'productivity', 'output'],
-    'effectiveness': ['efficiency', 'performance', 'success', 'impact'],
-    'efficiency': ['effectiveness', 'productivity', 'performance', 'optimization']
+const getGenericDistractors = (type: string): string[] => {
+  const distractorSets = {
+    definition: [
+      'a systematic approach to organizing complex information',
+      'a methodological framework for data analysis',
+      'a comprehensive strategy for performance optimization',
+      'a theoretical model for understanding relationships'
+    ],
+    action: [
+      'processes information systematically',
+      'manages complex data structures',
+      'optimizes performance metrics',
+      'coordinates multiple system components'
+    ],
+    possession: [
+      'multiple integrated components',
+      'advanced processing capabilities',
+      'comprehensive analytical features',
+      'sophisticated control mechanisms'
+    ],
+    condition: [
+      'when specific parameters are met',
+      'when optimal conditions are present',
+      'when system requirements are satisfied',
+      'when appropriate resources are available'
+    ],
+    location: [
+      'within the central processing unit',
+      'in the primary data storage area',
+      'at the main control interface',
+      'inside the core system module'
+    ]
   };
   
-  const wordLower = word.toLowerCase();
-  if (alternatives[wordLower]) {
-    const alts = alternatives[wordLower];
-    return alts[Math.floor(Math.random() * alts.length)];
-  }
-  
-  return word;
+  return distractorSets[type] || distractorSets.definition;
 };
 
 const shuffleArray = <T>(array: T[]): T[] => {
