@@ -4,61 +4,75 @@ import { openai } from '../lib/openai';
 export const generateFlashcards = async (pdfContent: string): Promise<Flashcard[]> => {
   console.log('🤖 Generating flashcards with OpenAI...');
   
-  // Check if OpenAI is available
-  if (!openai) {
-    console.log('OpenAI API key not provided, using local generation');
-    return generateLocalFlashcards(pdfContent);
-  }
-  
   if (!pdfContent || pdfContent.trim().length < 100) {
     console.warn('PDF content too short for meaningful analysis');
     return [];
   }
 
+  // Check if OpenAI is available
+  if (!openai) {
+    console.log('OpenAI API key not provided, using local generation');
+    return generateLocalFlashcards(pdfContent);
+  }
+
   try {
     const prompt = `
-You are an expert educational content creator. Analyze the following PDF content and create high-quality flashcards for effective learning.
+You are an expert educational content creator with deep expertise in learning science and pedagogy. Your task is to analyze the provided PDF content and create highly effective flashcards that promote deep understanding and retention.
 
 CONTENT TO ANALYZE:
-${pdfContent.substring(0, 8000)} // Limit content to avoid token limits
+${pdfContent.substring(0, 12000)}
 
 INSTRUCTIONS:
-1. Create 12-15 flashcards that cover the most important concepts, definitions, and key information
-2. Focus on content that would be valuable for someone studying this material
-3. Make questions clear, specific, and educational
-4. Provide comprehensive answers that explain the concept thoroughly
-5. Include context and significance where relevant
-6. Categorize each flashcard appropriately
+1. ANALYZE the content deeply to identify the most important concepts, principles, definitions, processes, and relationships
+2. CREATE 12-15 flashcards that cover different aspects of the material:
+   - Key definitions with context and significance
+   - Important concepts with explanations and examples
+   - Critical processes with step-by-step breakdowns
+   - Significant relationships and connections
+   - Practical applications and implications
+3. ENSURE each flashcard:
+   - Tests meaningful understanding, not just memorization
+   - Has a clear, specific question that guides learning
+   - Provides a comprehensive answer with context
+   - Explains WHY the information is important
+   - Uses language appropriate for the subject matter
+4. CATEGORIZE each flashcard based on content type:
+   - "Definition" - Clear term definitions
+   - "Concept" - Theoretical frameworks and ideas
+   - "Process" - Step-by-step procedures
+   - "Principle" - Rules, laws, or guidelines
+   - "Application" - Practical uses and examples
+   - "Analysis" - Critical thinking and evaluation
 
 REQUIRED JSON FORMAT:
 {
   "flashcards": [
     {
       "id": "fc-1",
-      "question": "Clear, specific question about the content",
-      "answer": "Comprehensive answer with context and explanation",
-      "category": "Definition/Concept/Process/Key Fact/Principle"
+      "question": "What is [specific term/concept] and why is it significant?",
+      "answer": "Detailed explanation that includes: definition, context, significance, examples, and connections to other concepts",
+      "category": "Definition"
     }
   ]
 }
 
-Generate flashcards that would genuinely help someone learn and understand this material.
+FOCUS ON QUALITY OVER QUANTITY. Each flashcard should be educational, meaningful, and directly derived from the provided content.
 `;
 
     const response = await openai.chat.completions.create({
-      model: "gpt-4",
+      model: "gpt-4o",
       messages: [
         {
           role: "system",
-          content: "You are an expert educational content creator specializing in creating effective learning materials from academic and professional documents."
+          content: "You are an expert educational content creator and learning scientist. You specialize in analyzing complex documents and creating highly effective learning materials that promote deep understanding, critical thinking, and long-term retention. You understand how to identify the most important information and present it in ways that facilitate meaningful learning."
         },
         {
           role: "user",
           content: prompt
         }
       ],
-      temperature: 0.7,
-      max_tokens: 3000
+      temperature: 0.3,
+      max_tokens: 4000
     });
 
     const content = response.choices[0]?.message?.content;
@@ -90,62 +104,79 @@ Generate flashcards that would genuinely help someone learn and understand this 
 export const generateQuizQuestions = async (pdfContent: string): Promise<QuizQuestion[]> => {
   console.log('🤖 Generating quiz questions with OpenAI...');
   
-  // Check if OpenAI is available
-  if (!openai) {
-    console.log('OpenAI API key not provided, using local generation');
-    return generateLocalQuizQuestions(pdfContent);
-  }
-  
   if (!pdfContent || pdfContent.trim().length < 100) {
     console.warn('PDF content too short for meaningful quiz generation');
     return [];
   }
 
+  // Check if OpenAI is available
+  if (!openai) {
+    console.log('OpenAI API key not provided, using local generation');
+    return generateLocalQuizQuestions(pdfContent);
+  }
+
   try {
     const prompt = `
-You are an expert educational assessment creator. Analyze the following PDF content and create challenging, relevant multiple-choice quiz questions.
+You are an expert educational assessment creator with deep knowledge of cognitive science and effective testing strategies. Your task is to analyze the provided PDF content and create high-quality multiple-choice quiz questions that assess genuine understanding.
 
 CONTENT TO ANALYZE:
-${pdfContent.substring(0, 8000)} // Limit content to avoid token limits
+${pdfContent.substring(0, 12000)}
 
 INSTRUCTIONS:
-1. Create 8-10 multiple-choice questions that test understanding of key concepts
-2. Each question should have 4 plausible options with only one correct answer
-3. Focus on testing comprehension, application, and analysis - not just memorization
-4. Make distractors (wrong answers) realistic and challenging
-5. Provide detailed explanations for why the correct answer is right
-6. Base all questions directly on the provided content
+1. ANALYZE the content to identify testable knowledge that demonstrates understanding
+2. CREATE 8-12 multiple-choice questions that:
+   - Test comprehension, application, and analysis (not just recall)
+   - Cover the most important concepts and information
+   - Require genuine understanding to answer correctly
+   - Are directly based on the provided content
+3. FOR EACH QUESTION:
+   - Write a clear, specific question stem
+   - Create 4 plausible answer options
+   - Make distractors (wrong answers) realistic but clearly incorrect
+   - Ensure only one answer is definitively correct
+   - Base all content directly on the source material
+4. QUESTION TYPES to include:
+   - Definition questions with nuanced distractors
+   - Application questions that test practical understanding
+   - Analysis questions that require connecting concepts
+   - Comparison questions that test understanding of relationships
+   - Cause-and-effect questions that test logical reasoning
+5. PROVIDE comprehensive explanations that:
+   - Explain why the correct answer is right
+   - Reference specific content from the document
+   - Clarify why other options are incorrect
+   - Add educational value beyond just correction
 
 REQUIRED JSON FORMAT:
 {
   "questions": [
     {
       "id": "quiz-1",
-      "question": "Clear, specific question testing understanding",
-      "options": ["Option A", "Option B", "Option C", "Option D"],
+      "question": "Based on the document, which statement best describes [concept/process/relationship]?",
+      "options": ["Correct comprehensive answer", "Plausible but incorrect option", "Another realistic distractor", "Third believable wrong answer"],
       "correctAnswer": 0,
-      "explanation": "Detailed explanation of why this answer is correct and why others are wrong"
+      "explanation": "The correct answer is [option] because [detailed explanation with document reference]. The other options are incorrect because: [brief explanation of why each distractor is wrong]."
     }
   ]
 }
 
-Create questions that would effectively assess someone's understanding of this material.
+FOCUS ON CREATING QUESTIONS THAT GENUINELY TEST UNDERSTANDING AND PROMOTE LEARNING.
 `;
 
     const response = await openai.chat.completions.create({
-      model: "gpt-4",
+      model: "gpt-4o",
       messages: [
         {
           role: "system",
-          content: "You are an expert educational assessment creator specializing in creating effective quiz questions from academic and professional documents."
+          content: "You are an expert educational assessment creator and cognitive scientist. You specialize in creating high-quality quiz questions that effectively measure understanding, promote learning, and provide meaningful feedback. You understand how to craft questions that test genuine comprehension rather than mere memorization."
         },
         {
           role: "user",
           content: prompt
         }
       ],
-      temperature: 0.7,
-      max_tokens: 3000
+      temperature: 0.3,
+      max_tokens: 4000
     });
 
     const content = response.choices[0]?.message?.content;
