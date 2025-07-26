@@ -27,7 +27,7 @@ const UserMenu: React.FC = () => {
     <div className="relative">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center space-x-3 px-4 py-2 bg-white/10 backdrop-blur-sm hover:bg-white/20 text-white rounded-xl transition-all duration-200 hover:scale-105"
+        className="flex items-center space-x-3 px-4 py-2 bg-white hover:bg-gray-50 text-gray-800 rounded-xl transition-all duration-200 hover:scale-105 shadow-lg"
       >
         {/* Avatar */}
         <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-indigo-500 rounded-full flex items-center justify-center shadow-lg">
@@ -41,12 +41,12 @@ const UserMenu: React.FC = () => {
           <p className="font-semibold text-sm leading-tight">
             {user?.email?.split('@')[0] || 'User'}
           </p>
-          <p className="text-white/70 text-xs">
+          <p className="text-gray-500 text-xs">
             {user?.email?.split('@')[1] || 'Account'}
           </p>
         </div>
         
-        <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+        <ChevronDown className={`h-4 w-4 text-gray-600 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
       {isOpen && (
