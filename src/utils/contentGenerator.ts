@@ -14,17 +14,31 @@ export const analyzeContentWithOpenAI = async (pdfContent: string): Promise<Cont
     return generateLocalContent(pdfContent);
   }
 
-  // Get OpenAI client from Supabase
-  const openai = await getOpenAIClient();
-  
-  if (!openai) {
-    console.warn('⚠️ OpenAI client not available, using local generation');
-    console.log('💡 Make sure your OpenAI API key is properly configured in Supabase');
-    return generateLocalContent(pdfContent);
-  }
-  
-  console.log('🤖 OpenAI client ready for content generation');
-}
+  try {
+    // Get OpenAI client from Supabase
+    const openai = await getOpenAIClient();
+    
+    if (!openai) {
+      console.warn('⚠️ OpenAI client not available, using local generation');
+      console.log('💡 Make sure your OpenAI API key is properly configured in Supabase');
+      return generateLocalContent(pdfContent);
+    }
+    
+    console.log('🤖 OpenAI client ready for content generation');
+
+    // Clean and prepare content for analysis
+    const contentToAnalyze = cleanPDFContent(pdfContent).substring(0, 25000);
+    
+    if (contentToAnalyze.length < 500) {
+      console.warn('Cleaned content too short for analysis');
+      return generateLocalContent(pdfContent);
+    }
+
+    console.log(`📄 Analyzing ${contentToAnalyze.length} characters of content...`);
+
+    // Step 1: Understand the document content
+    const understandingPrompt = `Please carefully read and analyze this document content. I need you to understand the key concepts, main topics, important facts, and overall structure.
+
 DOCUMENT CONTENT:
 ${contentToAnalyze}
 
@@ -192,7 +206,7 @@ const parseAndValidateResponse = (content: string): ContentAnalysisResult => {
         fc.question.includes('?') // Ensure it's a proper question
       )
       .map((fc, index) => ({
-        id: \`fc-${index + 1}`,
+        id: `fc-${index + 1}`,
         question: fc.question.trim(),
         answer: fc.answer.trim(),
         category: fc.category || 'Concept'
@@ -214,14 +228,14 @@ const parseAndValidateResponse = (content: string): ContentAnalysisResult => {
         q.explanation.length > 30
       )
       .map((q, index) => ({
-        id: \`quiz-${index + 1}`,
+        id: `quiz-${index + 1}`,
         question: q.question.trim(),
         options: q.options.map(opt => opt.trim()),
         correctAnswer: q.correctAnswer,
         explanation: q.explanation.trim()
       }));
 
-    console.log(\`✅ Validation complete: ${flashcards.length} flashcards, ${quizQuestions.length} quiz questions`);
+    console.log(`✅ Validation complete: ${flashcards.length} flashcards, ${quizQuestions.length} quiz questions`);
 
     if (flashcards.length === 0 && quizQuestions.length === 0) {
       throw new Error('No valid educational content after validation');
@@ -256,9 +270,9 @@ const generateLocalContent = (content: string): ContentAnalysisResult => {
       
       if (keyTerm) {
         flashcards.push({
-          id: \`fc-${i + 1}`,
-          question: \`What can you tell me about ${keyTerm.toLowerCase()} based on the document?`,
-          answer: \`${sentence}. This information is important for understanding the key concepts discussed in the document and provides essential context for the subject matter.`,
+          id: `fc-${i + 1}`,
+          question: `What can you tell me about ${keyTerm.toLowerCase()} based on the document?`,
+          answer: `${sentence}. This information is important for understanding the key concepts discussed in the document and provides essential context for the subject matter.`,
           category: i % 2 === 0 ? 'Concept' : 'Definition'
         });
       }
@@ -278,8 +292,8 @@ const generateLocalContent = (content: string): ContentAnalysisResult => {
         const keyPhrase = words.slice(0, 4).join(' ');
         
         quizQuestions.push({
-          id: \`quiz-${i + 1}`,
-          question: \`According to the document, what is stated about ${keyPhrase.toLowerCase()}?`,
+          id: `quiz-${i + 1}`,
+          question: `According to the document, what is stated about ${keyPhrase.toLowerCase()}?`,
           options: [
             mainSentence.length > 80 ? mainSentence.substring(0, 80) + '...' : mainSentence,
             'It serves as a primary research methodology.',
@@ -287,14 +301,14 @@ const generateLocalContent = (content: string): ContentAnalysisResult => {
             'It functions as a measurement tool for evaluation.'
           ],
           correctAnswer: 0,
-          explanation: \`The correct answer is directly stated in the document. This information provides important context for understanding the main concepts and themes presented in the material.`
+          explanation: `The correct answer is directly stated in the document. This information provides important context for understanding the main concepts and themes presented in the material.`
         });
       }
     }
   }
   
-  console.log(\`📚 Generated ${flashcards.length} local flashcards`);
-  console.log(\`❓ Generated ${quizQuestions.length} local quiz questions`);
+  console.log(`📚 Generated ${flashcards.length} local flashcards`);
+  console.log(`❓ Generated ${quizQuestions.length} local quiz questions`);
   
   return { flashcards, quizQuestions };
 };
