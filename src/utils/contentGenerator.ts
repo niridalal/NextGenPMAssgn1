@@ -1,415 +1,797 @@
 import { Flashcard, QuizQuestion } from '../types';
 
+// Enhanced PDF content analysis and generation
 export const generateFlashcards = (text: string): Flashcard[] => {
-  const flashcards: Flashcard[] = [];
+  console.log('Starting flashcard generation with text length:', text.length);
   
-  // Clean and prepare text
-  const cleanText = text.replace(/\s+/g, ' ').trim();
-  const sentences = cleanText.split(/[.!?]+/).filter(s => s.trim().length > 30);
-  const paragraphs = cleanText.split(/\n\s*\n/).filter(p => p.trim().length > 50);
-  
-  // Target count based on content length
-  const targetCount = Math.min(Math.max(8, Math.floor(text.length / 600)), 20);
-  
-  // Extract meaningful content from the document
-  const meaningfulContent = extractMeaningfulContent(cleanText);
-  
-  // Generate flashcards from extracted content
-  meaningfulContent.forEach((content, index) => {
-    if (flashcards.length < targetCount) {
-      flashcards.push({
-        id: flashcards.length + 1,
-        question: content.question,
-        answer: content.answer,
-        category: content.category
-      });
-    }
+  // Step 1: Clean and analyze the text
+  const analysis = analyzeDocumentContent(text);
+  console.log('Document analysis complete:', {
+    sentences: analysis.sentences.length,
+    keyTerms: analysis.keyTerms.length,
+    concepts: analysis.concepts.length,
+    facts: analysis.facts.length
   });
   
-  // If we don't have enough quality content, create some from key sentences
-  if (flashcards.length < Math.floor(targetCount * 0.6)) {
-    const keyInfo = extractKeyInformation(sentences);
-    keyInfo.forEach(info => {
-      if (flashcards.length < targetCount) {
-        flashcards.push({
-          id: flashcards.length + 1,
-          question: info.question,
-          answer: info.answer,
-          category: info.category
-        });
-      }
-    });
-  }
+  // Step 2: Extract high-quality flashcard content
+  const flashcardContent = extractFlashcardContent(analysis);
+  console.log('Extracted flashcard content:', flashcardContent.length);
   
-  return flashcards.slice(0, targetCount);
+  // Step 3: Generate flashcards with proper validation
+  const flashcards = createFlashcards(flashcardContent);
+  console.log('Generated flashcards:', flashcards.length);
+  
+  return flashcards;
 };
 
 export const generateQuizQuestions = (text: string): QuizQuestion[] => {
-  const questions: QuizQuestion[] = [];
-  const cleanText = text.replace(/\s+/g, ' ').trim();
+  console.log('Starting quiz generation with text length:', text.length);
   
-  // Target count based on content length
-  const targetCount = Math.min(Math.max(6, Math.floor(text.length / 800)), 15);
+  // Step 1: Analyze document for quiz-worthy content
+  const analysis = analyzeDocumentContent(text);
   
-  // Extract quiz-worthy content from the document
-  const quizContent = extractQuizContent(cleanText);
+  // Step 2: Extract quiz question content
+  const quizContent = extractQuizContent(analysis);
+  console.log('Extracted quiz content:', quizContent.length);
   
-  // Generate quiz questions from extracted content
-  quizContent.forEach((content, index) => {
-    if (questions.length < targetCount) {
-      const options = [content.correctAnswer, ...content.distractors];
-      const shuffledOptions = shuffleArray(options);
-      const correctIndex = shuffledOptions.indexOf(content.correctAnswer);
-      
-      questions.push({
-        id: questions.length + 1,
-        question: content.question,
-        options: shuffledOptions,
-        correctAnswer: correctIndex,
-        explanation: content.explanation
+  // Step 3: Generate quiz questions with proper validation
+  const questions = createQuizQuestions(quizContent, analysis);
+  console.log('Generated quiz questions:', questions.length);
+  
+  return questions;
+};
+
+// Core document analysis function
+interface DocumentAnalysis {
+  sentences: string[];
+  paragraphs: string[];
+  keyTerms: Array<{term: string, context: string, definition?: string}>;
+  concepts: Array<{concept: string, explanation: string, context: string}>;
+  facts: Array<{fact: string, context: string, type: 'numerical' | 'date' | 'location' | 'general'}>;
+  processes: Array<{process: string, steps: string[], context: string}>;
+  relationships: Array<{subject: string, relationship: string, object: string, context: string}>;
+  examples: Array<{concept: string, example: string, context: string}>;
+}
+
+const analyzeDocumentContent = (text: string): DocumentAnalysis => {
+  // Clean the text
+  const cleanText = text
+    .replace(/\s+/g, ' ')
+    .replace(/[^\w\s.,!?;:()\-"']/g, '')
+    .trim();
+  
+  // Split into sentences and paragraphs
+  const sentences = cleanText
+    .split(/[.!?]+/)
+    .map(s => s.trim())
+    .filter(s => s.length > 20 && s.length < 300)
+    .filter(s => !isLowQualitySentence(s));
+  
+  const paragraphs = cleanText
+    .split(/\n\s*\n/)
+    .map(p => p.trim())
+    .filter(p => p.length > 100);
+  
+  console.log('Text analysis:', {
+    originalLength: text.length,
+    cleanLength: cleanText.length,
+    sentences: sentences.length,
+    paragraphs: paragraphs.length
+  });
+  
+  // Extract different types of content
+  const keyTerms = extractKeyTerms(sentences);
+  const concepts = extractConcepts(sentences);
+  const facts = extractFacts(sentences);
+  const processes = extractProcesses(sentences);
+  const relationships = extractRelationships(sentences);
+  const examples = extractExamples(sentences);
+  
+  return {
+    sentences,
+    paragraphs,
+    keyTerms,
+    concepts,
+    facts,
+    processes,
+    relationships,
+    examples
+  };
+};
+
+// Extract key terms and their definitions
+const extractKeyTerms = (sentences: string[]): Array<{term: string, context: string, definition?: string}> => {
+  const keyTerms: Array<{term: string, context: string, definition?: string}> = [];
+  
+  sentences.forEach(sentence => {
+    // Pattern 1: "Term is definition" or "A term is definition"
+    const definitionPattern1 = /^(?:The\s+|A\s+|An\s+)?([A-Z][a-zA-Z\s]{2,40})\s+is\s+([^.!?]+)$/i;
+    const match1 = sentence.match(definitionPattern1);
+    if (match1) {
+      const term = match1[1].trim();
+      const definition = match1[2].trim();
+      if (isValidTerm(term) && isValidDefinition(definition)) {
+        keyTerms.push({
+          term: term,
+          context: sentence,
+          definition: definition
+        });
+      }
+    }
+    
+    // Pattern 2: "Term means definition" or "Term refers to definition"
+    const definitionPattern2 = /^([A-Z][a-zA-Z\s]{2,40})\s+(?:means|refers to|denotes|represents)\s+([^.!?]+)$/i;
+    const match2 = sentence.match(definitionPattern2);
+    if (match2) {
+      const term = match2[1].trim();
+      const definition = match2[2].trim();
+      if (isValidTerm(term) && isValidDefinition(definition)) {
+        keyTerms.push({
+          term: term,
+          context: sentence,
+          definition: definition
+        });
+      }
+    }
+    
+    // Pattern 3: "Term, which is definition," or "Term (definition)"
+    const definitionPattern3 = /([A-Z][a-zA-Z\s]{2,40})(?:,\s*which\s+is\s+([^,]+),|\s*\(([^)]+)\))/i;
+    const match3 = sentence.match(definitionPattern3);
+    if (match3) {
+      const term = match3[1].trim();
+      const definition = (match3[2] || match3[3] || '').trim();
+      if (isValidTerm(term) && isValidDefinition(definition)) {
+        keyTerms.push({
+          term: term,
+          context: sentence,
+          definition: definition
+        });
+      }
+    }
+    
+    // Pattern 4: Look for capitalized terms that might be important
+    const capitalizedTerms = sentence.match(/\b[A-Z][a-zA-Z]{2,}\s+[A-Z][a-zA-Z]{2,}(?:\s+[A-Z][a-zA-Z]{2,})?\b/g);
+    if (capitalizedTerms) {
+      capitalizedTerms.forEach(term => {
+        if (isValidTerm(term) && !keyTerms.some(kt => kt.term.toLowerCase() === term.toLowerCase())) {
+          keyTerms.push({
+            term: term.trim(),
+            context: sentence
+          });
+        }
       });
     }
   });
   
-  return questions.slice(0, targetCount);
+  return keyTerms.slice(0, 15); // Limit to most relevant terms
 };
 
-// Extract meaningful content for flashcards
-const extractMeaningfulContent = (text: string): Array<{question: string, answer: string, category: string}> => {
-  const content: Array<{question: string, answer: string, category: string}> = [];
-  const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 20);
+// Extract concepts and their explanations
+const extractConcepts = (sentences: string[]): Array<{concept: string, explanation: string, context: string}> => {
+  const concepts: Array<{concept: string, explanation: string, context: string}> = [];
   
-  // 1. Extract definitions and explanations
   sentences.forEach(sentence => {
-    const trimmed = sentence.trim();
-    
-    // Pattern: "X is Y" or "X means Y" or "X refers to Y"
-    const definitionMatch = trimmed.match(/^(.+?)\s+(?:is|means|refers to|represents|denotes)\s+(.+)$/i);
-    if (definitionMatch && definitionMatch[1].length < 100 && definitionMatch[2].length > 15) {
-      const term = definitionMatch[1].trim().replace(/^(The|A|An)\s+/i, '');
-      const definition = definitionMatch[2].trim();
-      
-      if (!isGenericContent(term) && !isGenericContent(definition)) {
-        content.push({
-          question: `What is ${term}?`,
-          answer: definition,
-          category: 'Definition'
+    // Pattern 1: "The concept of X involves Y"
+    const conceptPattern1 = /(?:The\s+)?concept\s+of\s+([^,]+),?\s+(?:involves|includes|encompasses|comprises)\s+([^.!?]+)/i;
+    const match1 = sentence.match(conceptPattern1);
+    if (match1) {
+      const concept = match1[1].trim();
+      const explanation = match1[2].trim();
+      if (isValidConcept(concept) && explanation.length > 20) {
+        concepts.push({
+          concept: concept,
+          explanation: explanation,
+          context: sentence
         });
       }
     }
     
-    // Pattern: "X involves Y" or "X includes Y" or "X consists of Y"
-    const processMatch = trimmed.match(/^(.+?)\s+(?:involves|includes|consists of|comprises|contains)\s+(.+)$/i);
-    if (processMatch && processMatch[1].length < 80 && processMatch[2].length > 20) {
-      const subject = processMatch[1].trim().replace(/^(The|A|An)\s+/i, '');
-      const process = processMatch[2].trim();
-      
-      if (!isGenericContent(subject) && !isGenericContent(process)) {
-        content.push({
-          question: `What does ${subject} involve?`,
-          answer: process,
-          category: 'Process'
+    // Pattern 2: "X theory states that Y" or "X principle suggests that Y"
+    const conceptPattern2 = /([A-Z][a-zA-Z\s]{3,30})\s+(?:theory|principle|law|rule|concept)\s+(?:states|suggests|indicates|shows|demonstrates)\s+that\s+([^.!?]+)/i;
+    const match2 = sentence.match(conceptPattern2);
+    if (match2) {
+      const concept = match2[1].trim() + ' theory/principle';
+      const explanation = match2[2].trim();
+      if (explanation.length > 20) {
+        concepts.push({
+          concept: concept,
+          explanation: explanation,
+          context: sentence
         });
       }
     }
     
-    // Pattern: "X causes Y" or "X results in Y" or "X leads to Y"
-    const causeMatch = trimmed.match(/^(.+?)\s+(?:causes|results in|leads to|produces|creates)\s+(.+)$/i);
-    if (causeMatch && causeMatch[1].length < 80 && causeMatch[2].length > 15) {
-      const cause = causeMatch[1].trim();
-      const effect = causeMatch[2].trim();
-      
-      if (!isGenericContent(cause) && !isGenericContent(effect)) {
-        content.push({
-          question: `What does ${cause} cause?`,
-          answer: effect,
-          category: 'Cause & Effect'
-        });
-      }
-    }
-    
-    // Pattern: "X can be used for Y" or "X is used to Y"
-    const purposeMatch = trimmed.match(/^(.+?)\s+(?:can be used for|is used to|is used for|serves to|helps to)\s+(.+)$/i);
-    if (purposeMatch && purposeMatch[1].length < 80 && purposeMatch[2].length > 15) {
-      const tool = purposeMatch[1].trim().replace(/^(The|A|An)\s+/i, '');
-      const purpose = purposeMatch[2].trim();
-      
-      if (!isGenericContent(tool) && !isGenericContent(purpose)) {
-        content.push({
-          question: `What is ${tool} used for?`,
-          answer: purpose,
-          category: 'Application'
-        });
-      }
-    }
-    
-    // Pattern: "X has Y characteristics/properties/features"
-    const characteristicMatch = trimmed.match(/^(.+?)\s+(?:has|have|possesses|exhibits|displays)\s+(.+?)\s+(?:characteristics|properties|features|attributes|qualities)$/i);
-    if (characteristicMatch && characteristicMatch[1].length < 80 && characteristicMatch[2].length > 10) {
-      const subject = characteristicMatch[1].trim().replace(/^(The|A|An)\s+/i, '');
-      const characteristics = characteristicMatch[2].trim();
-      
-      if (!isGenericContent(subject) && !isGenericContent(characteristics)) {
-        content.push({
-          question: `What characteristics does ${subject} have?`,
-          answer: `${characteristics} characteristics`,
-          category: 'Characteristics'
+    // Pattern 3: "X is important because Y" or "X is significant because Y"
+    const conceptPattern3 = /([A-Z][a-zA-Z\s]{3,40})\s+is\s+(?:important|significant|crucial|essential|vital)\s+because\s+([^.!?]+)/i;
+    const match3 = sentence.match(conceptPattern3);
+    if (match3) {
+      const concept = match3[1].trim();
+      const explanation = match3[2].trim();
+      if (isValidConcept(concept) && explanation.length > 20) {
+        concepts.push({
+          concept: concept,
+          explanation: `Important because ${explanation}`,
+          context: sentence
         });
       }
     }
   });
   
-  // 2. Extract key facts from longer sentences
-  sentences.forEach(sentence => {
-    const trimmed = sentence.trim();
-    if (trimmed.length > 60 && trimmed.length < 200) {
-      // Look for sentences with specific numbers, dates, or important facts
-      if (/\b(?:\d+%|\d+\s+(?:years?|months?|days?|hours?)|19\d{2}|20\d{2}|\$\d+|\d+\s+(?:million|billion|thousand))\b/i.test(trimmed)) {
-        // Extract the key fact
-        const factMatch = trimmed.match(/^(.+?)\s+(?:was|were|is|are|has|have|contains|includes)\s+(.+)$/i);
-        if (factMatch && factMatch[1].length < 60 && factMatch[2].length > 10) {
-          const subject = factMatch[1].trim();
-          const fact = factMatch[2].trim();
-          
-          if (!isGenericContent(subject)) {
-            content.push({
-              question: `What fact is mentioned about ${subject}?`,
-              answer: fact,
-              category: 'Fact'
-            });
-          }
-        }
-      }
-    }
-  });
-  
-  // 3. Extract comparisons
-  sentences.forEach(sentence => {
-    const trimmed = sentence.trim();
-    
-    // Pattern: "Unlike X, Y does Z" or "While X does Y, Z does W"
-    const comparisonMatch = trimmed.match(/^(?:Unlike|While|Whereas)\s+(.+?),\s+(.+)$/i);
-    if (comparisonMatch && comparisonMatch[1].length < 80 && comparisonMatch[2].length > 15) {
-      const item1 = comparisonMatch[1].trim();
-      const comparison = comparisonMatch[2].trim();
-      
-      if (!isGenericContent(item1)) {
-        content.push({
-          question: `How does this differ from ${item1}?`,
-          answer: comparison,
-          category: 'Comparison'
-        });
-      }
-    }
-    
-    // Pattern: "X is different from Y because Z"
-    const differenceMatch = trimmed.match(/^(.+?)\s+(?:is different from|differs from|contrasts with)\s+(.+?)\s+because\s+(.+)$/i);
-    if (differenceMatch && differenceMatch[1].length < 60 && differenceMatch[3].length > 15) {
-      const item1 = differenceMatch[1].trim();
-      const item2 = differenceMatch[2].trim();
-      const reason = differenceMatch[3].trim();
-      
-      if (!isGenericContent(item1) && !isGenericContent(item2)) {
-        content.push({
-          question: `How does ${item1} differ from ${item2}?`,
-          answer: reason,
-          category: 'Comparison'
-        });
-      }
-    }
-  });
-  
-  return content;
+  return concepts.slice(0, 12);
 };
 
-// Extract content suitable for quiz questions
-const extractQuizContent = (text: string): Array<{question: string, correctAnswer: string, distractors: string[], explanation: string}> => {
-  const content: Array<{question: string, correctAnswer: string, distractors: string[], explanation: string}> = [];
-  const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 20);
+// Extract factual information
+const extractFacts = (sentences: string[]): Array<{fact: string, context: string, type: 'numerical' | 'date' | 'location' | 'general'}> => {
+  const facts: Array<{fact: string, context: string, type: 'numerical' | 'date' | 'location' | 'general'}> = [];
   
-  // 1. Extract factual information for quiz questions
   sentences.forEach(sentence => {
-    const trimmed = sentence.trim();
-    
-    // Pattern: "X is Y" - create "What is X?" question
-    const definitionMatch = trimmed.match(/^(.+?)\s+is\s+(.+)$/i);
-    if (definitionMatch && definitionMatch[1].length < 80 && definitionMatch[2].length > 15 && definitionMatch[2].length < 150) {
-      const term = definitionMatch[1].trim().replace(/^(The|A|An)\s+/i, '');
-      const definition = definitionMatch[2].trim();
-      
-      if (!isGenericContent(term) && !isGenericContent(definition)) {
-        const distractors = generateContextualDistractors(definition, text, 'definition');
-        content.push({
-          question: `What is ${term}?`,
-          correctAnswer: definition,
-          distractors: distractors,
-          explanation: `${term} is defined as ${definition}. This is explicitly stated in the document.`
+    // Numerical facts
+    const numericalPattern = /([^.!?]*(?:\d+(?:\.\d+)?(?:%|percent|million|billion|thousand|hundred)?|(?:19|20)\d{2})[^.!?]*)/i;
+    if (numericalPattern.test(sentence)) {
+      const numbers = sentence.match(/\d+(?:\.\d+)?(?:%|percent|million|billion|thousand|hundred)?|(?:19|20)\d{2}/g);
+      if (numbers && numbers.length > 0) {
+        facts.push({
+          fact: sentence,
+          context: sentence,
+          type: 'numerical'
         });
       }
     }
     
-    // Pattern: "X does Y" or "X performs Y" - create "What does X do?" question
-    const actionMatch = trimmed.match(/^(.+?)\s+(?:does|performs|executes|carries out|accomplishes)\s+(.+)$/i);
-    if (actionMatch && actionMatch[1].length < 80 && actionMatch[2].length > 15) {
-      const actor = actionMatch[1].trim().replace(/^(The|A|An)\s+/i, '');
-      const action = actionMatch[2].trim();
-      
-      if (!isGenericContent(actor) && !isGenericContent(action)) {
-        const distractors = generateContextualDistractors(action, text, 'action');
-        content.push({
-          question: `What does ${actor} do?`,
-          correctAnswer: action,
-          distractors: distractors,
-          explanation: `According to the document, ${actor} ${action}.`
-        });
-      }
+    // Date facts
+    const datePattern = /\b(?:(?:19|20)\d{2}|(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},?\s+\d{4}|\d{1,2}\/\d{1,2}\/\d{4})\b/i;
+    if (datePattern.test(sentence)) {
+      facts.push({
+        fact: sentence,
+        context: sentence,
+        type: 'date'
+      });
     }
     
-    // Pattern: "X has Y" - create "What does X have?" question
-    const hasMatch = trimmed.match(/^(.+?)\s+(?:has|have|possesses|contains|includes)\s+(.+)$/i);
-    if (hasMatch && hasMatch[1].length < 80 && hasMatch[2].length > 15 && hasMatch[2].length < 120) {
-      const subject = hasMatch[1].trim().replace(/^(The|A|An)\s+/i, '');
-      const object = hasMatch[2].trim();
-      
-      if (!isGenericContent(subject) && !isGenericContent(object)) {
-        const distractors = generateContextualDistractors(object, text, 'possession');
-        content.push({
-          question: `What does ${subject} have?`,
-          correctAnswer: object,
-          distractors: distractors,
-          explanation: `The document states that ${subject} has ${object}.`
-        });
-      }
+    // Location facts
+    const locationPattern = /\b(?:in|at|located in|situated in|found in)\s+([A-Z][a-zA-Z\s,]{3,40})\b/i;
+    const locationMatch = sentence.match(locationPattern);
+    if (locationMatch) {
+      facts.push({
+        fact: sentence,
+        context: sentence,
+        type: 'location'
+      });
     }
     
-    // Pattern: "X occurs when Y" or "X happens when Y" - create "When does X occur?" question
-    const conditionMatch = trimmed.match(/^(.+?)\s+(?:occurs|happens|takes place)\s+when\s+(.+)$/i);
-    if (conditionMatch && conditionMatch[1].length < 80 && conditionMatch[2].length > 15) {
-      const event = conditionMatch[1].trim().replace(/^(The|A|An)\s+/i, '');
-      const condition = conditionMatch[2].trim();
-      
-      if (!isGenericContent(event) && !isGenericContent(condition)) {
-        const distractors = generateContextualDistractors(condition, text, 'condition');
-        content.push({
-          question: `When does ${event} occur?`,
-          correctAnswer: `when ${condition}`,
-          distractors: distractors,
-          explanation: `According to the document, ${event} occurs when ${condition}.`
-        });
-      }
-    }
-    
-    // Pattern: "X is located in Y" or "X can be found in Y" - create "Where is X located?" question
-    const locationMatch = trimmed.match(/^(.+?)\s+(?:is located in|can be found in|exists in|is situated in)\s+(.+)$/i);
-    if (locationMatch && locationMatch[1].length < 80 && locationMatch[2].length > 10) {
-      const item = locationMatch[1].trim().replace(/^(The|A|An)\s+/i, '');
-      const location = locationMatch[2].trim();
-      
-      if (!isGenericContent(item) && !isGenericContent(location)) {
-        const distractors = generateContextualDistractors(location, text, 'location');
-        content.push({
-          question: `Where is ${item} located?`,
-          correctAnswer: location,
-          distractors: distractors,
-          explanation: `The document indicates that ${item} is located in ${location}.`
-        });
-      }
+    // General important facts (sentences with specific indicators)
+    const factIndicators = /\b(?:research shows|studies indicate|evidence suggests|data reveals|findings show|results demonstrate|statistics show)\b/i;
+    if (factIndicators.test(sentence)) {
+      facts.push({
+        fact: sentence,
+        context: sentence,
+        type: 'general'
+      });
     }
   });
   
-  // 2. Extract numerical facts
-  sentences.forEach(sentence => {
-    const trimmed = sentence.trim();
-    
-    // Look for sentences with specific numbers
-    const numberMatch = trimmed.match(/^(.+?)\s+(?:is|are|was|were|contains|includes|has|have)\s+(.+?\b(?:\d+%|\d+\s+(?:years?|months?|days?|hours?|minutes?|seconds?)|19\d{2}|20\d{2}|\$\d+|\d+\s+(?:million|billion|thousand|hundred))\b.*)$/i);
-    if (numberMatch && numberMatch[1].length < 80 && numberMatch[2].length > 10) {
-      const subject = numberMatch[1].trim().replace(/^(The|A|An)\s+/i, '');
-      const numericalFact = numberMatch[2].trim();
-      
-      if (!isGenericContent(subject)) {
-        const distractors = generateNumericalDistractors(numericalFact);
-        content.push({
-          question: `What numerical fact is mentioned about ${subject}?`,
-          correctAnswer: numericalFact,
-          distractors: distractors,
-          explanation: `The document states that ${subject} ${numericalFact}.`
-        });
-      }
-    }
-  });
-  
-  return content;
+  return facts.slice(0, 10);
 };
 
-// Extract key information from sentences for fallback flashcards
-const extractKeyInformation = (sentences: string[]): Array<{question: string, answer: string, category: string}> => {
-  const keyInfo: Array<{question: string, answer: string, category: string}> = [];
+// Extract processes and procedures
+const extractProcesses = (sentences: string[]): Array<{process: string, steps: string[], context: string}> => {
+  const processes: Array<{process: string, steps: string[], context: string}> = [];
   
   sentences.forEach(sentence => {
-    const trimmed = sentence.trim();
-    if (trimmed.length > 40 && trimmed.length < 200) {
-      // Look for sentences that contain important information
-      if (containsImportantInfo(trimmed)) {
-        // Create a question based on the sentence structure
-        const subject = extractSubject(trimmed);
-        if (subject && subject.length > 3 && subject.length < 60) {
-          keyInfo.push({
-            question: `What is mentioned about ${subject}?`,
-            answer: trimmed,
-            category: 'Key Information'
-          });
-        }
+    // Pattern 1: "The process of X involves Y"
+    const processPattern1 = /(?:The\s+)?process\s+of\s+([^,]+)\s+(?:involves|includes|consists of|comprises)\s+([^.!?]+)/i;
+    const match1 = sentence.match(processPattern1);
+    if (match1) {
+      const process = match1[1].trim();
+      const stepsText = match1[2].trim();
+      const steps = extractStepsFromText(stepsText);
+      if (steps.length > 0) {
+        processes.push({
+          process: process,
+          steps: steps,
+          context: sentence
+        });
+      }
+    }
+    
+    // Pattern 2: "To X, you must Y" or "In order to X, Y"
+    const processPattern2 = /(?:To|In order to)\s+([^,]+),\s+(?:you must|one must|it is necessary to|you need to)\s+([^.!?]+)/i;
+    const match2 = sentence.match(processPattern2);
+    if (match2) {
+      const process = match2[1].trim();
+      const step = match2[2].trim();
+      processes.push({
+        process: process,
+        steps: [step],
+        context: sentence
+      });
+    }
+    
+    // Pattern 3: Sequential indicators
+    const sequentialPattern = /\b(?:first|second|third|then|next|finally|lastly|initially|subsequently)\b/i;
+    if (sequentialPattern.test(sentence)) {
+      const steps = sentence.split(/\b(?:first|second|third|then|next|finally|lastly|initially|subsequently)\b/i)
+        .map(s => s.trim())
+        .filter(s => s.length > 10);
+      
+      if (steps.length > 1) {
+        processes.push({
+          process: 'Sequential process',
+          steps: steps,
+          context: sentence
+        });
       }
     }
   });
   
-  return keyInfo.slice(0, 8);
+  return processes.slice(0, 8);
 };
 
-// Generate contextual distractors based on document content
-const generateContextualDistractors = (correctAnswer: string, fullText: string, type: string): string[] => {
+// Extract relationships between concepts
+const extractRelationships = (sentences: string[]): Array<{subject: string, relationship: string, object: string, context: string}> => {
+  const relationships: Array<{subject: string, relationship: string, object: string, context: string}> = [];
+  
+  sentences.forEach(sentence => {
+    // Pattern 1: "X causes Y" or "X leads to Y"
+    const causalPattern = /([A-Z][a-zA-Z\s]{3,40})\s+(causes|leads to|results in|produces|creates|generates)\s+([^.!?]+)/i;
+    const causalMatch = sentence.match(causalPattern);
+    if (causalMatch) {
+      relationships.push({
+        subject: causalMatch[1].trim(),
+        relationship: causalMatch[2].trim(),
+        object: causalMatch[3].trim(),
+        context: sentence
+      });
+    }
+    
+    // Pattern 2: "X is related to Y" or "X is associated with Y"
+    const relationPattern = /([A-Z][a-zA-Z\s]{3,40})\s+is\s+(?:related to|associated with|connected to|linked to)\s+([^.!?]+)/i;
+    const relationMatch = sentence.match(relationPattern);
+    if (relationMatch) {
+      relationships.push({
+        subject: relationMatch[1].trim(),
+        relationship: 'is related to',
+        object: relationMatch[2].trim(),
+        context: sentence
+      });
+    }
+    
+    // Pattern 3: "X affects Y" or "X influences Y"
+    const influencePattern = /([A-Z][a-zA-Z\s]{3,40})\s+(affects|influences|impacts|modifies|changes)\s+([^.!?]+)/i;
+    const influenceMatch = sentence.match(influencePattern);
+    if (influenceMatch) {
+      relationships.push({
+        subject: influenceMatch[1].trim(),
+        relationship: influenceMatch[2].trim(),
+        object: influenceMatch[3].trim(),
+        context: sentence
+      });
+    }
+  });
+  
+  return relationships.slice(0, 10);
+};
+
+// Extract examples
+const extractExamples = (sentences: string[]): Array<{concept: string, example: string, context: string}> => {
+  const examples: Array<{concept: string, example: string, context: string}> = [];
+  
+  sentences.forEach(sentence => {
+    // Pattern 1: "For example, X" or "Such as X"
+    const examplePattern1 = /([^.!?]*)\b(?:for example|such as|including|like)\s+([^.!?]+)/i;
+    const match1 = sentence.match(examplePattern1);
+    if (match1) {
+      const concept = match1[1].trim();
+      const example = match1[2].trim();
+      if (concept.length > 10 && example.length > 10) {
+        examples.push({
+          concept: concept,
+          example: example,
+          context: sentence
+        });
+      }
+    }
+    
+    // Pattern 2: "X, for instance, Y"
+    const examplePattern2 = /([^,]+),\s*for instance,\s*([^.!?]+)/i;
+    const match2 = sentence.match(examplePattern2);
+    if (match2) {
+      const concept = match2[1].trim();
+      const example = match2[2].trim();
+      if (concept.length > 10 && example.length > 10) {
+        examples.push({
+          concept: concept,
+          example: example,
+          context: sentence
+        });
+      }
+    }
+  });
+  
+  return examples.slice(0, 8);
+};
+
+// Create flashcards from analyzed content
+const extractFlashcardContent = (analysis: DocumentAnalysis): Array<{question: string, answer: string, category: string, quality: number}> => {
+  const flashcardContent: Array<{question: string, answer: string, category: string, quality: number}> = [];
+  
+  // From key terms with definitions
+  analysis.keyTerms.forEach(term => {
+    if (term.definition) {
+      flashcardContent.push({
+        question: `What is ${term.term}?`,
+        answer: term.definition,
+        category: 'Definition',
+        quality: 9
+      });
+    } else {
+      // Create a question from context
+      flashcardContent.push({
+        question: `What can you tell me about ${term.term}?`,
+        answer: extractAnswerFromContext(term.context, term.term),
+        category: 'Key Term',
+        quality: 7
+      });
+    }
+  });
+  
+  // From concepts
+  analysis.concepts.forEach(concept => {
+    flashcardContent.push({
+      question: `Explain the concept of ${concept.concept}`,
+      answer: concept.explanation,
+      category: 'Concept',
+      quality: 8
+    });
+  });
+  
+  // From processes
+  analysis.processes.forEach(process => {
+    if (process.steps.length > 1) {
+      flashcardContent.push({
+        question: `What are the steps involved in ${process.process}?`,
+        answer: process.steps.join('; '),
+        category: 'Process',
+        quality: 8
+      });
+    } else if (process.steps.length === 1) {
+      flashcardContent.push({
+        question: `How do you ${process.process}?`,
+        answer: process.steps[0],
+        category: 'Process',
+        quality: 7
+      });
+    }
+  });
+  
+  // From relationships
+  analysis.relationships.forEach(rel => {
+    flashcardContent.push({
+      question: `What is the relationship between ${rel.subject} and ${rel.object}?`,
+      answer: `${rel.subject} ${rel.relationship} ${rel.object}`,
+      category: 'Relationship',
+      quality: 7
+    });
+  });
+  
+  // From facts
+  analysis.facts.forEach(fact => {
+    const question = createQuestionFromFact(fact.fact, fact.type);
+    if (question) {
+      flashcardContent.push({
+        question: question,
+        answer: fact.fact,
+        category: 'Fact',
+        quality: 6
+      });
+    }
+  });
+  
+  // From examples
+  analysis.examples.forEach(example => {
+    flashcardContent.push({
+      question: `Give an example of ${example.concept}`,
+      answer: example.example,
+      category: 'Example',
+      quality: 6
+    });
+  });
+  
+  // Sort by quality and return top items
+  return flashcardContent
+    .sort((a, b) => b.quality - a.quality)
+    .slice(0, 20);
+};
+
+// Create quiz content from analyzed content
+const extractQuizContent = (analysis: DocumentAnalysis): Array<{question: string, correctAnswer: string, type: string, context: string, quality: number}> => {
+  const quizContent: Array<{question: string, correctAnswer: string, type: string, context: string, quality: number}> = [];
+  
+  // From key terms with definitions
+  analysis.keyTerms.forEach(term => {
+    if (term.definition) {
+      quizContent.push({
+        question: `What is ${term.term}?`,
+        correctAnswer: term.definition,
+        type: 'definition',
+        context: term.context,
+        quality: 9
+      });
+    }
+  });
+  
+  // From concepts
+  analysis.concepts.forEach(concept => {
+    quizContent.push({
+      question: `Which statement best describes ${concept.concept}?`,
+      correctAnswer: concept.explanation,
+      type: 'concept',
+      context: concept.context,
+      quality: 8
+    });
+  });
+  
+  // From facts
+  analysis.facts.forEach(fact => {
+    if (fact.type === 'numerical') {
+      const numbers = fact.fact.match(/\d+(?:\.\d+)?(?:%|percent|million|billion|thousand|hundred)?/g);
+      if (numbers && numbers.length > 0) {
+        quizContent.push({
+          question: createNumericalQuestion(fact.fact),
+          correctAnswer: numbers[0],
+          type: 'numerical',
+          context: fact.context,
+          quality: 8
+        });
+      }
+    } else {
+      const question = createFactualQuestion(fact.fact);
+      if (question) {
+        quizContent.push({
+          question: question,
+          correctAnswer: extractFactualAnswer(fact.fact),
+          type: 'factual',
+          context: fact.context,
+          quality: 7
+        });
+      }
+    }
+  });
+  
+  // From relationships
+  analysis.relationships.forEach(rel => {
+    quizContent.push({
+      question: `What does ${rel.subject} ${rel.relationship}?`,
+      correctAnswer: rel.object,
+      type: 'relationship',
+      context: rel.context,
+      quality: 7
+    });
+  });
+  
+  // From processes
+  analysis.processes.forEach(process => {
+    if (process.steps.length > 1) {
+      quizContent.push({
+        question: `What is the first step in ${process.process}?`,
+        correctAnswer: process.steps[0],
+        type: 'process',
+        context: process.context,
+        quality: 7
+      });
+    }
+  });
+  
+  return quizContent
+    .sort((a, b) => b.quality - a.quality)
+    .slice(0, 15);
+};
+
+// Create final flashcards
+const createFlashcards = (content: Array<{question: string, answer: string, category: string, quality: number}>): Flashcard[] => {
+  return content.map((item, index) => ({
+    id: index + 1,
+    question: item.question,
+    answer: item.answer,
+    category: item.category
+  }));
+};
+
+// Create final quiz questions
+const createQuizQuestions = (content: Array<{question: string, correctAnswer: string, type: string, context: string, quality: number}>, analysis: DocumentAnalysis): QuizQuestion[] => {
+  return content.map((item, index) => {
+    const distractors = generateSmartDistractors(item.correctAnswer, item.type, analysis);
+    const options = [item.correctAnswer, ...distractors];
+    const shuffledOptions = shuffleArray(options);
+    const correctIndex = shuffledOptions.indexOf(item.correctAnswer);
+    
+    return {
+      id: index + 1,
+      question: item.question,
+      options: shuffledOptions,
+      correctAnswer: correctIndex,
+      explanation: `The correct answer is "${item.correctAnswer}". This information is found in the document: ${item.context.substring(0, 100)}...`
+    };
+  });
+};
+
+// Helper functions
+const isLowQualitySentence = (sentence: string): boolean => {
+  const lowQualityPatterns = [
+    /^(?:this|that|these|those|it|they)\s/i,
+    /^(?:here|there)\s/i,
+    /^(?:yes|no|maybe|perhaps)\s*[.!?]*$/i,
+    /^\d+\s*[.!?]*$/,
+    /^[A-Z\s]+$/,
+    /^.{1,15}$/
+  ];
+  
+  return lowQualityPatterns.some(pattern => pattern.test(sentence)) ||
+         sentence.split(' ').length < 5 ||
+         sentence.split(' ').length > 50;
+};
+
+const isValidTerm = (term: string): boolean => {
+  return term.length >= 3 && 
+         term.length <= 50 && 
+         !/^(?:this|that|these|those|it|they|the|a|an)$/i.test(term) &&
+         /[A-Za-z]/.test(term);
+};
+
+const isValidDefinition = (definition: string): boolean => {
+  return definition.length >= 15 && 
+         definition.length <= 200 &&
+         !/^(?:this|that|these|those|it|they)$/i.test(definition.trim());
+};
+
+const isValidConcept = (concept: string): boolean => {
+  return concept.length >= 5 && 
+         concept.length <= 60 &&
+         !/^(?:this|that|these|those|it|they|the|a|an)$/i.test(concept);
+};
+
+const extractStepsFromText = (text: string): string[] => {
+  // Look for numbered steps or sequential indicators
+  const steps: string[] = [];
+  
+  // Pattern 1: Numbered steps (1., 2., 3., etc.)
+  const numberedSteps = text.match(/\d+\.\s*([^.]+)/g);
+  if (numberedSteps) {
+    return numberedSteps.map(step => step.replace(/^\d+\.\s*/, '').trim());
+  }
+  
+  // Pattern 2: Sequential words
+  const sequentialSplit = text.split(/\b(?:first|second|third|then|next|finally|lastly)\b/i);
+  if (sequentialSplit.length > 1) {
+    return sequentialSplit.map(s => s.trim()).filter(s => s.length > 5);
+  }
+  
+  // Pattern 3: Comma or semicolon separated
+  const commaSplit = text.split(/[,;]/).map(s => s.trim()).filter(s => s.length > 10);
+  if (commaSplit.length > 1) {
+    return commaSplit.slice(0, 5); // Limit to 5 steps
+  }
+  
+  return [text]; // Return as single step if no pattern found
+};
+
+const extractAnswerFromContext = (context: string, term: string): string => {
+  // Try to extract meaningful information about the term from its context
+  const sentences = context.split(/[.!?]+/);
+  for (const sentence of sentences) {
+    if (sentence.toLowerCase().includes(term.toLowerCase())) {
+      // Remove the term from the sentence to create an answer
+      const answer = sentence.replace(new RegExp(term, 'gi'), '').trim();
+      if (answer.length > 20) {
+        return answer.replace(/^[,\s]+|[,\s]+$/g, '');
+      }
+    }
+  }
+  return context.substring(0, 150) + '...';
+};
+
+const createQuestionFromFact = (fact: string, type: string): string | null => {
+  switch (type) {
+    case 'numerical':
+      const numbers = fact.match(/\d+(?:\.\d+)?(?:%|percent|million|billion|thousand|hundred)?/g);
+      if (numbers) {
+        return `What is the numerical value mentioned in relation to this fact?`;
+      }
+      break;
+    case 'date':
+      return `When did this event occur?`;
+    case 'location':
+      return `Where does this take place?`;
+    default:
+      return `What is this important fact?`;
+  }
+  return null;
+};
+
+const createNumericalQuestion = (fact: string): string => {
+  // Extract the subject of the numerical fact
+  const beforeNumber = fact.split(/\d/)[0];
+  if (beforeNumber.length > 10) {
+    return `What is the numerical value associated with ${beforeNumber.trim()}?`;
+  }
+  return `What is the numerical value mentioned in this context?`;
+};
+
+const createFactualQuestion = (fact: string): string => {
+  // Create a question based on the fact structure
+  if (fact.includes(' is ') || fact.includes(' are ')) {
+    const parts = fact.split(/ (?:is|are) /);
+    if (parts.length >= 2 && parts[0].length < 50) {
+      return `What is true about ${parts[0].trim()}?`;
+    }
+  }
+  return `What does the document state about this topic?`;
+};
+
+const extractFactualAnswer = (fact: string): string => {
+  // Extract the key part of the fact as the answer
+  if (fact.includes(' is ') || fact.includes(' are ')) {
+    const parts = fact.split(/ (?:is|are) /);
+    if (parts.length >= 2) {
+      return parts[1].trim();
+    }
+  }
+  return fact.length > 100 ? fact.substring(0, 100) + '...' : fact;
+};
+
+const generateSmartDistractors = (correctAnswer: string, type: string, analysis: DocumentAnalysis): string[] => {
   const distractors: string[] = [];
-  const sentences = fullText.split(/[.!?]+/).filter(s => s.trim().length > 20);
   
-  // Find similar content in the document to use as distractors
-  sentences.forEach(sentence => {
-    const trimmed = sentence.trim();
-    if (trimmed !== correctAnswer && trimmed.length > 15 && trimmed.length < 150) {
-      // Look for sentences with similar patterns based on type
-      let isRelevantDistractor = false;
-      
-      switch (type) {
-        case 'definition':
-          isRelevantDistractor = /\b(?:is|are|means|refers to|represents)\b/i.test(trimmed);
-          break;
-        case 'action':
-          isRelevantDistractor = /\b(?:does|performs|executes|carries out|accomplishes)\b/i.test(trimmed);
-          break;
-        case 'possession':
-          isRelevantDistractor = /\b(?:has|have|possesses|contains|includes)\b/i.test(trimmed);
-          break;
-        case 'condition':
-          isRelevantDistractor = /\b(?:when|if|during|while|as)\b/i.test(trimmed);
-          break;
-        case 'location':
-          isRelevantDistractor = /\b(?:in|at|on|within|inside|outside)\b/i.test(trimmed);
-          break;
-      }
-      
-      if (isRelevantDistractor && distractors.length < 3) {
-        // Extract the relevant part of the sentence
-        const relevantPart = extractRelevantPart(trimmed, type);
-        if (relevantPart && relevantPart !== correctAnswer && relevantPart.length > 10) {
-          distractors.push(relevantPart);
+  switch (type) {
+    case 'definition':
+      // Use other definitions from the document
+      analysis.keyTerms.forEach(term => {
+        if (term.definition && term.definition !== correctAnswer && distractors.length < 3) {
+          distractors.push(term.definition);
         }
+      });
+      break;
+      
+    case 'concept':
+      // Use other concept explanations
+      analysis.concepts.forEach(concept => {
+        if (concept.explanation !== correctAnswer && distractors.length < 3) {
+          distractors.push(concept.explanation);
+        }
+      });
+      break;
+      
+    case 'numerical':
+      // Generate numerical variations
+      const numbers = correctAnswer.match(/\d+(?:\.\d+)?/g);
+      if (numbers) {
+        const baseNumber = parseFloat(numbers[0]);
+        const variations = [
+          String(Math.floor(baseNumber * 0.8)),
+          String(Math.floor(baseNumber * 1.2)),
+          String(Math.floor(baseNumber * 0.5))
+        ];
+        distractors.push(...variations.slice(0, 3));
       }
-    }
-  });
+      break;
+      
+    case 'factual':
+    case 'relationship':
+    case 'process':
+      // Use other facts or relationships from the document
+      const allContent = [
+        ...analysis.facts.map(f => f.fact),
+        ...analysis.relationships.map(r => r.object),
+        ...analysis.processes.map(p => p.steps[0] || '')
+      ].filter(content => content !== correctAnswer && content.length > 10 && content.length < 150);
+      
+      distractors.push(...allContent.slice(0, 3));
+      break;
+  }
   
   // Fill remaining slots with generic but plausible distractors
+  const genericDistractors = getGenericDistractorsByType(type);
   while (distractors.length < 3) {
-    const genericDistractors = getGenericDistractors(type);
     const randomDistractor = genericDistractors[Math.floor(Math.random() * genericDistractors.length)];
     if (!distractors.includes(randomDistractor)) {
       distractors.push(randomDistractor);
@@ -419,159 +801,42 @@ const generateContextualDistractors = (correctAnswer: string, fullText: string, 
   return distractors.slice(0, 3);
 };
 
-// Generate numerical distractors
-const generateNumericalDistractors = (correctAnswer: string): string[] => {
-  const distractors: string[] = [];
-  
-  // Extract numbers from the correct answer
-  const numbers = correctAnswer.match(/\d+/g);
-  if (numbers) {
-    numbers.forEach(num => {
-      const value = parseInt(num);
-      // Create variations of the number
-      const variations = [
-        correctAnswer.replace(num, String(Math.floor(value * 0.8))),
-        correctAnswer.replace(num, String(Math.floor(value * 1.2))),
-        correctAnswer.replace(num, String(Math.floor(value * 0.5)))
-      ];
-      
-      variations.forEach(variation => {
-        if (variation !== correctAnswer && distractors.length < 3) {
-          distractors.push(variation);
-        }
-      });
-    });
-  }
-  
-  // Fill with generic numerical distractors if needed
-  while (distractors.length < 3) {
-    const genericNumerical = [
-      'approximately 50% of the total amount',
-      'between 10 and 20 units on average',
-      'roughly 75% of the maximum capacity',
-      'around 100 units per standard measurement'
-    ];
-    
-    const randomDistractor = genericNumerical[Math.floor(Math.random() * genericNumerical.length)];
-    if (!distractors.includes(randomDistractor)) {
-      distractors.push(randomDistractor);
-    }
-  }
-  
-  return distractors.slice(0, 3);
-};
-
-// Helper functions
-const isGenericContent = (content: string): boolean => {
-  const genericTerms = [
-    'this', 'that', 'these', 'those', 'it', 'they', 'them', 'something', 'anything',
-    'everything', 'nothing', 'someone', 'anyone', 'everyone', 'thing', 'things',
-    'way', 'ways', 'time', 'times', 'place', 'places', 'people', 'person'
-  ];
-  
-  const lowerContent = content.toLowerCase();
-  return genericTerms.some(term => lowerContent.includes(term)) ||
-         content.length < 5 ||
-         /^[A-Z\s]+$/.test(content) ||
-         /^\d+$/.test(content);
-};
-
-const containsImportantInfo = (sentence: string): boolean => {
-  // Check for indicators of important information
-  const importantIndicators = [
-    /\b(?:important|significant|crucial|essential|key|main|primary|major)\b/i,
-    /\b(?:because|since|due to|as a result|therefore|thus|consequently)\b/i,
-    /\b(?:first|second|third|finally|lastly|initially|subsequently)\b/i,
-    /\b(?:\d+%|\d+\s+(?:years?|months?|days?)|19\d{2}|20\d{2}|\$\d+)\b/i,
-    /\b(?:always|never|must|should|required|necessary|essential)\b/i
-  ];
-  
-  return importantIndicators.some(pattern => pattern.test(sentence));
-};
-
-const extractSubject = (sentence: string): string | null => {
-  // Try to extract the main subject of the sentence
-  const subjectPatterns = [
-    /^(The\s+[^,]+?)(?:\s+is|\s+are|\s+was|\s+were|\s+has|\s+have|\s+does|\s+do)/i,
-    /^([A-Z][^,]+?)(?:\s+is|\s+are|\s+was|\s+were|\s+has|\s+have|\s+does|\s+do)/i,
-    /^([^,]+?)(?:\s+is|\s+are|\s+was|\s+were|\s+has|\s+have|\s+does|\s+do)/i
-  ];
-  
-  for (const pattern of subjectPatterns) {
-    const match = sentence.match(pattern);
-    if (match && match[1]) {
-      const subject = match[1].trim().replace(/^(The|A|An)\s+/i, '');
-      if (subject.length > 3 && subject.length < 60 && !isGenericContent(subject)) {
-        return subject;
-      }
-    }
-  }
-  
-  return null;
-};
-
-const extractRelevantPart = (sentence: string, type: string): string | null => {
-  switch (type) {
-    case 'definition':
-      const defMatch = sentence.match(/(?:is|are|means|refers to|represents)\s+(.+)$/i);
-      return defMatch ? defMatch[1].trim() : null;
-    
-    case 'action':
-      const actionMatch = sentence.match(/(?:does|performs|executes|carries out|accomplishes)\s+(.+)$/i);
-      return actionMatch ? actionMatch[1].trim() : null;
-    
-    case 'possession':
-      const possMatch = sentence.match(/(?:has|have|possesses|contains|includes)\s+(.+)$/i);
-      return possMatch ? possMatch[1].trim() : null;
-    
-    case 'condition':
-      const condMatch = sentence.match(/(?:when|if|during|while|as)\s+(.+)$/i);
-      return condMatch ? `when ${condMatch[1].trim()}` : null;
-    
-    case 'location':
-      const locMatch = sentence.match(/(?:in|at|on|within|inside|outside)\s+(.+)$/i);
-      return locMatch ? locMatch[1].trim() : null;
-    
-    default:
-      return sentence.length < 120 ? sentence : null;
-  }
-};
-
-const getGenericDistractors = (type: string): string[] => {
-  const distractorSets = {
+const getGenericDistractorsByType = (type: string): string[] => {
+  const genericSets = {
     definition: [
-      'a systematic approach to organizing complex information',
-      'a methodological framework for data analysis',
-      'a comprehensive strategy for performance optimization',
-      'a theoretical model for understanding relationships'
+      'A systematic approach to problem-solving and analysis',
+      'A comprehensive framework for understanding complex relationships',
+      'A methodological process for organizing and interpreting data',
+      'A theoretical model for explaining observed phenomena'
     ],
-    action: [
-      'processes information systematically',
-      'manages complex data structures',
-      'optimizes performance metrics',
-      'coordinates multiple system components'
+    concept: [
+      'This concept focuses on the integration of multiple variables',
+      'This approach emphasizes the importance of systematic analysis',
+      'This framework provides a structured method for evaluation',
+      'This theory explains the underlying mechanisms of the process'
     ],
-    possession: [
-      'multiple integrated components',
-      'advanced processing capabilities',
-      'comprehensive analytical features',
-      'sophisticated control mechanisms'
+    numerical: ['50', '100', '25', '75', '200', '10', '5'],
+    factual: [
+      'This is supported by extensive research and documentation',
+      'This has been validated through multiple independent studies',
+      'This represents a significant advancement in the field',
+      'This demonstrates the effectiveness of the proposed method'
     ],
-    condition: [
-      'when specific parameters are met',
-      'when optimal conditions are present',
-      'when system requirements are satisfied',
-      'when appropriate resources are available'
+    relationship: [
+      'directly influences the overall system performance',
+      'is closely connected to the primary operational factors',
+      'significantly impacts the efficiency of the process',
+      'plays a crucial role in determining the final outcome'
     ],
-    location: [
-      'within the central processing unit',
-      'in the primary data storage area',
-      'at the main control interface',
-      'inside the core system module'
+    process: [
+      'Begin by establishing clear objectives and parameters',
+      'Start with a comprehensive analysis of the requirements',
+      'Initiate the process by gathering relevant information',
+      'Commence with a thorough evaluation of the conditions'
     ]
   };
   
-  return distractorSets[type] || distractorSets.definition;
+  return genericSets[type] || genericSets.factual;
 };
 
 const shuffleArray = <T>(array: T[]): T[] => {
