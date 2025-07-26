@@ -68,10 +68,10 @@ const UserMenu: React.FC = () => {
                   </span>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="text-white font-bold text-lg truncate">
+                  <h3 className="text-white font-semibold text-lg truncate font-sans">
                     {user?.email?.split('@')[0] || 'User'}
                   </h3>
-                  <p className="text-blue-100 text-sm truncate">
+                  <p className="text-blue-100 text-sm truncate font-medium">
                     {user?.email || 'No email'}
                   </p>
                 </div>
@@ -81,7 +81,7 @@ const UserMenu: React.FC = () => {
             {/* Account Details */}
             <div className="p-6 space-y-4">
               <div className="space-y-3">
-                <h4 className="text-sm font-semibold text-gray-900 uppercase tracking-wide">
+                <h4 className="text-sm font-bold text-gray-900 uppercase tracking-wider font-sans">
                   Account Details
                 </h4>
                 
@@ -91,10 +91,10 @@ const UserMenu: React.FC = () => {
                     <Mail className="h-4 w-4 text-blue-600" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider font-mono">
                       Email Address
                     </p>
-                    <p className="text-sm font-semibold text-gray-900 truncate">
+                    <p className="text-sm font-bold text-gray-900 truncate font-sans">
                       {user?.email || 'Not available'}
                     </p>
                   </div>
@@ -106,10 +106,10 @@ const UserMenu: React.FC = () => {
                     <User className="h-4 w-4 text-green-600" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider font-mono">
                       User ID
                     </p>
-                    <p className="text-sm font-mono text-gray-900 truncate">
+                    <p className="text-sm font-bold font-mono text-gray-900 truncate">
                       {user?.id ? `${user.id.substring(0, 8)}...` : 'Not available'}
                     </p>
                   </div>
@@ -121,10 +121,10 @@ const UserMenu: React.FC = () => {
                     <Calendar className="h-4 w-4 text-purple-600" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider font-mono">
                       Member Since
                     </p>
-                    <p className="text-sm font-semibold text-gray-900">
+                    <p className="text-sm font-bold text-gray-900 font-sans">
                       {user?.created_at ? formatDate(user.created_at) : 'Unknown'}
                     </p>
                   </div>
@@ -134,8 +134,8 @@ const UserMenu: React.FC = () => {
               {/* Account Status */}
               <div className="pt-4 border-t border-gray-100">
                 <div className="flex items-center justify-between mb-4">
-                  <span className="text-sm font-medium text-gray-700">Account Status</span>
-                  <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800">
+                  <span className="text-sm font-semibold text-gray-700 font-sans">Account Status</span>
+                  <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-800 font-sans">
                     <div className="w-2 h-2 bg-green-400 rounded-full mr-2"></div>
                     Active
                   </span>
@@ -147,18 +147,18 @@ const UserMenu: React.FC = () => {
             <div className="border-t border-gray-100 p-4 space-y-2">
               <button
                 onClick={() => setIsOpen(false)}
-                className="w-full flex items-center space-x-3 px-4 py-3 text-left text-gray-700 hover:bg-gray-50 rounded-xl transition-colors"
+                className="w-full flex items-center space-x-3 px-4 py-3 text-left text-gray-700 hover:bg-gray-50 rounded-xl transition-colors font-medium font-sans"
               >
                 <Settings className="h-4 w-4" />
-                <span className="font-medium">Account Settings</span>
+                <span className="font-semibold">Account Settings</span>
               </button>
               
               <button
                 onClick={handleSignOut}
-                className="w-full flex items-center space-x-3 px-4 py-3 text-left text-red-600 hover:bg-red-50 rounded-xl transition-colors"
+                className="w-full flex items-center space-x-3 px-4 py-3 text-left text-red-600 hover:bg-red-50 rounded-xl transition-colors font-medium font-sans"
               >
                 <LogOut className="h-4 w-4" />
-                <span className="font-medium">Sign Out</span>
+                <span className="font-semibold">Sign Out</span>
               </button>
             </div>
           </div>
