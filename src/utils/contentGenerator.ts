@@ -1,248 +1,193 @@
 import { Flashcard, QuizQuestion } from '../types';
 import { openai } from '../lib/openai';
 
-export const generateFlashcards = async (pdfContent: string): Promise<Flashcard[]> => {
-  console.log('🤖 Generating flashcards with OpenAI...');
+interface ContentAnalysisResult {
+  flashcards: Flashcard[];
+  quizQuestions: QuizQuestion[];
+}
+
+export const analyzeContentWithOpenAI = async (pdfContent: string): Promise<ContentAnalysisResult> => {
+  console.log('🤖 Starting comprehensive PDF analysis with OpenAI...');
   
   if (!pdfContent || pdfContent.trim().length < 100) {
     console.warn('PDF content too short for meaningful analysis');
-    return [];
+    return { flashcards: [], quizQuestions: [] };
   }
 
   // Check if OpenAI is available
   if (!openai) {
     console.log('OpenAI API key not provided, using local generation');
-    return generateLocalFlashcards(pdfContent);
+    return generateLocalContent(pdfContent);
   }
 
   try {
-    const prompt = `
-You are an expert educational content creator with deep expertise in learning science and pedagogy. Your task is to analyze the provided PDF content and create highly effective flashcards that promote deep understanding and retention.
+    // Comprehensive content analysis prompt
+    const analysisPrompt = `
+You are an expert educational content creator and learning scientist with deep expertise in document analysis, pedagogy, and assessment design. Your task is to thoroughly analyze the provided PDF content and create comprehensive learning materials.
 
-CONTENT TO ANALYZE:
-${pdfContent.substring(0, 12000)}
+DOCUMENT CONTENT TO ANALYZE:
+${pdfContent.substring(0, 15000)}
 
-INSTRUCTIONS:
-1. ANALYZE the content deeply to identify the most important concepts, principles, definitions, processes, and relationships
-2. CREATE 12-15 flashcards that cover different aspects of the material:
-   - Key definitions with context and significance
-   - Important concepts with explanations and examples
-   - Critical processes with step-by-step breakdowns
-   - Significant relationships and connections
-   - Practical applications and implications
-3. ENSURE each flashcard:
-   - Tests meaningful understanding, not just memorization
-   - Has a clear, specific question that guides learning
-   - Provides a comprehensive answer with context
-   - Explains WHY the information is important
-   - Uses language appropriate for the subject matter
-4. CATEGORIZE each flashcard based on content type:
-   - "Definition" - Clear term definitions
-   - "Concept" - Theoretical frameworks and ideas
-   - "Process" - Step-by-step procedures
-   - "Principle" - Rules, laws, or guidelines
-   - "Application" - Practical uses and examples
-   - "Analysis" - Critical thinking and evaluation
+YOUR MISSION:
+1. DEEPLY ANALYZE the document to understand its core concepts, key information, and learning objectives
+2. IDENTIFY the most important knowledge that readers should retain and understand
+3. CREATE high-quality flashcards that highlight key points and promote understanding
+4. GENERATE quiz questions that effectively test comprehension of the document
+
+PART 1 - FLASHCARD GENERATION:
+Create 12-15 flashcards that highlight the most important points from the document:
+
+FLASHCARD REQUIREMENTS:
+- Focus on KEY CONCEPTS, DEFINITIONS, PROCESSES, and IMPORTANT FACTS from the document
+- Each flashcard should test meaningful understanding, not trivial details
+- Questions should be clear and specific to the document content
+- Answers should be comprehensive with context and significance
+- Include why the information is important or relevant
+- Categorize appropriately: Definition, Concept, Process, Principle, Application, Analysis
+
+PART 2 - QUIZ GENERATION:
+Create 8-12 multiple-choice questions that test understanding of the document:
+
+QUIZ REQUIREMENTS:
+- Test COMPREHENSION and APPLICATION, not just memorization
+- Questions must be directly based on the document content
+- Create 4 plausible answer options for each question
+- Only one answer should be definitively correct
+- Wrong answers should be realistic but clearly incorrect based on the document
+- Provide detailed explanations that reference the document content
+
+CRITICAL INSTRUCTIONS:
+- Base ALL content strictly on the provided document
+- Ensure questions and answers are educationally valuable
+- Focus on information that demonstrates true understanding
+- Make content relevant to the document's subject matter and context
+- Avoid generic or template-based questions
 
 REQUIRED JSON FORMAT:
 {
   "flashcards": [
     {
       "id": "fc-1",
-      "question": "What is [specific term/concept] and why is it significant?",
-      "answer": "Detailed explanation that includes: definition, context, significance, examples, and connections to other concepts",
+      "question": "What is [specific concept from document] and why is it significant?",
+      "answer": "Comprehensive answer with definition, context, significance, and examples from the document. Explain why this concept matters in the context of the document's subject matter.",
       "category": "Definition"
     }
-  ]
-}
-
-FOCUS ON QUALITY OVER QUANTITY. Each flashcard should be educational, meaningful, and directly derived from the provided content.
-`;
-
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [
-        {
-          role: "system",
-          content: "You are an expert educational content creator and learning scientist. You specialize in analyzing complex documents and creating highly effective learning materials that promote deep understanding, critical thinking, and long-term retention. You understand how to identify the most important information and present it in ways that facilitate meaningful learning."
-        },
-        {
-          role: "user",
-          content: prompt
-        }
-      ],
-      temperature: 0.3,
-      max_tokens: 4000
-    });
-
-    const content = response.choices[0]?.message?.content;
-    if (!content) {
-      throw new Error('No response from OpenAI');
-    }
-
-    // Parse the JSON response
-    const jsonMatch = content.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      throw new Error('Invalid JSON format in OpenAI response');
-    }
-
-    const parsedResponse = JSON.parse(jsonMatch[0]);
-    const flashcards = parsedResponse.flashcards || [];
-
-    console.log(`✅ Generated ${flashcards.length} AI-powered flashcards`);
-    return flashcards;
-
-  } catch (error) {
-    console.error('❌ Error generating flashcards with OpenAI:', error);
-    
-    // Fallback to local generation if OpenAI fails
-    console.log('🔄 Falling back to local generation...');
-    return generateLocalFlashcards(pdfContent);
-  }
-};
-
-export const generateQuizQuestions = async (pdfContent: string): Promise<QuizQuestion[]> => {
-  console.log('🤖 Generating quiz questions with OpenAI...');
-  
-  if (!pdfContent || pdfContent.trim().length < 100) {
-    console.warn('PDF content too short for meaningful quiz generation');
-    return [];
-  }
-
-  // Check if OpenAI is available
-  if (!openai) {
-    console.log('OpenAI API key not provided, using local generation');
-    return generateLocalQuizQuestions(pdfContent);
-  }
-
-  try {
-    const prompt = `
-You are an expert educational assessment creator with deep knowledge of cognitive science and effective testing strategies. Your task is to analyze the provided PDF content and create high-quality multiple-choice quiz questions that assess genuine understanding.
-
-CONTENT TO ANALYZE:
-${pdfContent.substring(0, 12000)}
-
-INSTRUCTIONS:
-1. ANALYZE the content to identify testable knowledge that demonstrates understanding
-2. CREATE 8-12 multiple-choice questions that:
-   - Test comprehension, application, and analysis (not just recall)
-   - Cover the most important concepts and information
-   - Require genuine understanding to answer correctly
-   - Are directly based on the provided content
-3. FOR EACH QUESTION:
-   - Write a clear, specific question stem
-   - Create 4 plausible answer options
-   - Make distractors (wrong answers) realistic but clearly incorrect
-   - Ensure only one answer is definitively correct
-   - Base all content directly on the source material
-4. QUESTION TYPES to include:
-   - Definition questions with nuanced distractors
-   - Application questions that test practical understanding
-   - Analysis questions that require connecting concepts
-   - Comparison questions that test understanding of relationships
-   - Cause-and-effect questions that test logical reasoning
-5. PROVIDE comprehensive explanations that:
-   - Explain why the correct answer is right
-   - Reference specific content from the document
-   - Clarify why other options are incorrect
-   - Add educational value beyond just correction
-
-REQUIRED JSON FORMAT:
-{
-  "questions": [
+  ],
+  "quizQuestions": [
     {
-      "id": "quiz-1",
-      "question": "Based on the document, which statement best describes [concept/process/relationship]?",
-      "options": ["Correct comprehensive answer", "Plausible but incorrect option", "Another realistic distractor", "Third believable wrong answer"],
+      "id": "quiz-1", 
+      "question": "According to the document, which statement best describes [concept/process from document]?",
+      "options": ["Correct answer based on document", "Plausible but incorrect option", "Another realistic distractor", "Third believable wrong answer"],
       "correctAnswer": 0,
-      "explanation": "The correct answer is [option] because [detailed explanation with document reference]. The other options are incorrect because: [brief explanation of why each distractor is wrong]."
+      "explanation": "The correct answer is [option] because the document specifically states [reference to document content]. This is important because [significance]. The other options are incorrect because [brief explanation of why each is wrong based on document content]."
     }
   ]
 }
 
-FOCUS ON CREATING QUESTIONS THAT GENUINELY TEST UNDERSTANDING AND PROMOTE LEARNING.
+FOCUS ON QUALITY AND EDUCATIONAL VALUE. Every flashcard and quiz question should genuinely help someone learn and understand the document content better.
 `;
 
+    console.log('🔄 Sending analysis request to OpenAI...');
+    
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [
         {
           role: "system",
-          content: "You are an expert educational assessment creator and cognitive scientist. You specialize in creating high-quality quiz questions that effectively measure understanding, promote learning, and provide meaningful feedback. You understand how to craft questions that test genuine comprehension rather than mere memorization."
+          content: "You are an expert educational content creator, learning scientist, and document analyst. You specialize in analyzing complex documents and creating highly effective learning materials that promote deep understanding, critical thinking, and long-term retention. You excel at identifying the most important information in any document and transforming it into engaging, educational content that facilitates meaningful learning."
         },
         {
           role: "user",
-          content: prompt
+          content: analysisPrompt
         }
       ],
-      temperature: 0.3,
-      max_tokens: 4000
+      temperature: 0.2, // Lower temperature for more consistent, focused analysis
+      max_tokens: 4500 // Increased for comprehensive content
     });
 
     const content = response.choices[0]?.message?.content;
     if (!content) {
-      throw new Error('No response from OpenAI');
+      throw new Error('No response received from OpenAI');
     }
+
+    console.log('✅ Received response from OpenAI');
 
     // Parse the JSON response
     const jsonMatch = content.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
+      console.error('Invalid JSON format in OpenAI response:', content);
       throw new Error('Invalid JSON format in OpenAI response');
     }
 
     const parsedResponse = JSON.parse(jsonMatch[0]);
-    const questions = parsedResponse.questions || [];
+    
+    const flashcards = parsedResponse.flashcards || [];
+    const quizQuestions = parsedResponse.quizQuestions || [];
 
-    console.log(`✅ Generated ${questions.length} AI-powered quiz questions`);
-    return questions;
+    // Validate the generated content
+    if (flashcards.length === 0 && quizQuestions.length === 0) {
+      throw new Error('No valid content generated by OpenAI');
+    }
+
+    console.log(`✅ OpenAI Analysis Complete:`);
+    console.log(`📚 Generated ${flashcards.length} high-quality flashcards`);
+    console.log(`❓ Generated ${quizQuestions.length} comprehensive quiz questions`);
+
+    return {
+      flashcards: flashcards,
+      quizQuestions: quizQuestions
+    };
 
   } catch (error) {
-    console.error('❌ Error generating quiz questions with OpenAI:', error);
+    console.error('❌ Error during OpenAI analysis:', error);
     
     // Fallback to local generation if OpenAI fails
-    console.log('🔄 Falling back to local generation...');
-    return generateLocalQuizQuestions(pdfContent);
+    console.log('🔄 Falling back to local content generation...');
+    return generateLocalContent(pdfContent);
   }
 };
 
-export async function generateFlashcardsAndQuiz(text: string): Promise<{ flashcards: Flashcard[], quiz: QuizQuestion[] }> {
-  try {
-    // Split text into chunks if it's too long (OpenAI has token limits)
-    const maxChunkSize = 8000; // Conservative limit
+// Fallback local generation for when OpenAI is not available
+const generateLocalContent = (content: string): ContentAnalysisResult => {
+  console.log('🔧 Generating content locally...');
+  
+  const flashcards = generateLocalFlashcards(content);
+  const quizQuestions = generateLocalQuizQuestions(content);
+  
+  console.log(`📚 Generated ${flashcards.length} local flashcards`);
+  console.log(`❓ Generated ${quizQuestions.length} local quiz questions`);
+  
+  return { flashcards, quizQuestions };
+};
 
-    const [flashcards, quiz] = await Promise.all([
-      generateFlashcards(text),
-      generateQuizQuestions(text)
-    ]);
-
-    return { flashcards, quiz };
-  } catch (error) {
-    console.error('Error generating content:', error);
-    return generateLocalContent(text);
-  }
-}
-
-function generateLocalContent(text: string): { flashcards: Flashcard[], quiz: QuizQuestion[] } {
-  return {
-    flashcards: generateLocalFlashcards(text),
-    quiz: generateLocalQuizQuestions(text)
-  };
-}
-
-// Fallback local generation functions (simplified versions)
+// Simplified local generation functions
 const generateLocalFlashcards = (content: string): Flashcard[] => {
   const sentences = content.split(/[.!?]+/).filter(s => s.trim().length > 50);
   const flashcards: Flashcard[] = [];
   
-  // Simple pattern matching for definitions
+  // Extract key concepts and definitions
   sentences.forEach((sentence, index) => {
+    if (flashcards.length >= 8) return;
+    
+    // Look for definition patterns
     const definitionMatch = sentence.match(/([A-Z][a-zA-Z\s]{2,30})\s+is\s+([^,]{20,100})/);
-    if (definitionMatch && flashcards.length < 10) {
+    if (definitionMatch) {
       flashcards.push({
         id: `fc-${index}`,
         question: `What is ${definitionMatch[1].trim()}?`,
-        answer: definitionMatch[2].trim(),
+        answer: `${definitionMatch[2].trim()}\n\nContext: This definition is important for understanding the key concepts discussed in the document.`,
         category: 'Definition'
+      });
+    }
+    
+    // Look for process descriptions
+    const processMatch = sentence.match(/(process|method|approach|technique)\s+of\s+([^,]{10,50})/i);
+    if (processMatch && !definitionMatch) {
+      flashcards.push({
+        id: `fc-${index}`,
+        question: `Describe the ${processMatch[1].toLowerCase()} of ${processMatch[2].trim()}.`,
+        answer: `${sentence.trim()}\n\nSignificance: Understanding this process is crucial for grasping the main concepts in the document.`,
+        category: 'Process'
       });
     }
   });
@@ -254,27 +199,40 @@ const generateLocalQuizQuestions = (content: string): QuizQuestion[] => {
   const sentences = content.split(/[.!?]+/).filter(s => s.trim().length > 50);
   const questions: QuizQuestion[] = [];
   
-  // Simple pattern matching for quiz questions
   sentences.forEach((sentence, index) => {
+    if (questions.length >= 5) return;
+    
+    // Generate questions from definitions
     const definitionMatch = sentence.match(/([A-Z][a-zA-Z\s]{2,30})\s+is\s+([^,]{20,100})/);
-    if (definitionMatch && questions.length < 5) {
+    if (definitionMatch) {
       const term = definitionMatch[1].trim();
       const correctAnswer = definitionMatch[2].trim();
       
       questions.push({
         id: `quiz-${index}`,
-        question: `What is ${term}?`,
+        question: `According to the document, what is ${term}?`,
         options: [
           correctAnswer,
-          'A method for analyzing data',
-          'A type of research approach',
-          'A theoretical framework'
+          'A method for analyzing complex data sets',
+          'A theoretical framework for research',
+          'A tool for measuring performance metrics'
         ],
         correctAnswer: 0,
-        explanation: `${term} is defined as ${correctAnswer} in the document.`
+        explanation: `The correct answer is "${correctAnswer}" as explicitly stated in the document. This definition is important for understanding the core concepts discussed in the material.`
       });
     }
   });
   
   return questions;
+};
+
+// Legacy functions for backward compatibility (now deprecated)
+export const generateFlashcards = async (pdfContent: string): Promise<Flashcard[]> => {
+  const result = await analyzeContentWithOpenAI(pdfContent);
+  return result.flashcards;
+};
+
+export const generateQuizQuestions = async (pdfContent: string): Promise<QuizQuestion[]> => {
+  const result = await analyzeContentWithOpenAI(pdfContent);
+  return result.quizQuestions;
 };

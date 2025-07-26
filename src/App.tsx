@@ -5,7 +5,7 @@ import FlashcardViewer from './components/FlashcardViewer';
 import QuizInterface from './components/QuizInterface';
 import { Flashcard, QuizQuestion } from './types';
 import { extractTextFromPDF } from './utils/pdfProcessor';
-import { generateFlashcards, generateQuizQuestions } from './utils/contentGenerator';
+import { analyzeContentWithOpenAI } from './utils/contentGenerator';
 
 type ActiveView = 'upload' | 'flashcards' | 'quiz';
 
@@ -40,19 +40,16 @@ function App() {
         content: extractedData.content
       });
       
-      // Generate flashcards and quiz questions
-      console.log('🎯 Generating learning content...');
-      const [generatedFlashcards, generatedQuizQuestions] = await Promise.all([
-        generateFlashcards(extractedData.content),
-        generateQuizQuestions(extractedData.content)
-      ]);
+      // Analyze PDF content with OpenAI and generate learning materials
+      console.log('🤖 Analyzing PDF content with OpenAI...');
+      const analysisResult = await analyzeContentWithOpenAI(extractedData.content);
       
-      setFlashcards(generatedFlashcards);
-      setQuizQuestions(generatedQuizQuestions);
+      setFlashcards(analysisResult.flashcards);
+      setQuizQuestions(analysisResult.quizQuestions);
       
       console.log('✅ Content generation complete');
-      console.log('📚 Generated:', generatedFlashcards.length, 'flashcards');
-      console.log('❓ Generated:', generatedQuizQuestions.length, 'quiz questions');
+      console.log('📚 Generated:', analysisResult.flashcards.length, 'flashcards');
+      console.log('❓ Generated:', analysisResult.quizQuestions.length, 'quiz questions');
       
       // Switch to flashcards view
       setActiveView('flashcards');
