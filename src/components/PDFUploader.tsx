@@ -56,10 +56,10 @@ const PDFUploader: React.FC<PDFUploaderProps> = ({
               <Loader2 className="h-16 w-16 text-blue-600 animate-spin" />
               <div>
                 <h3 className="text-2xl font-bold text-gray-900 mb-2">
-                  Processing PDF...
+                  Processing PDF with AI...
                 </h3>
                 <p className="text-gray-600">
-                  Extracting content and generating learning materials
+                  Analyzing content and generating intelligent flashcards and quiz questions
                 </p>
               </div>
             </>

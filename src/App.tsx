@@ -42,8 +42,10 @@ function App() {
       
       // Generate flashcards and quiz questions
       console.log('🎯 Generating learning content...');
-      const generatedFlashcards = generateFlashcards(extractedData.content);
-      const generatedQuizQuestions = generateQuizQuestions(extractedData.content);
+      const [generatedFlashcards, generatedQuizQuestions] = await Promise.all([
+        generateFlashcards(extractedData.content),
+        generateQuizQuestions(extractedData.content)
+      ]);
       
       setFlashcards(generatedFlashcards);
       setQuizQuestions(generatedQuizQuestions);
