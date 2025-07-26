@@ -31,6 +31,7 @@ const QuizInterface: React.FC<QuizInterfaceProps> = ({ questions, onGoHome }) =>
   // Update current question index when initialIndex prop changes
   React.useEffect(() => {
     setShowResults(false);
+  }, [currentQuestionIndex]);
 
   const currentQuestion = questions[currentQuestionIndex];
   const userAnswer = selectedAnswers[currentQuestionIndex];
