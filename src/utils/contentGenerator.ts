@@ -23,68 +23,62 @@ export const analyzeContentWithOpenAI = async (pdfContent: string): Promise<Cont
   try {
     // Comprehensive content analysis prompt
     const analysisPrompt = `
-You are an expert educational content creator and learning scientist with deep expertise in document analysis, pedagogy, and assessment design. Your task is to thoroughly analyze the provided PDF content and create comprehensive learning materials.
+You are an expert educational content creator and learning scientist. You have a PhD in Education and 15+ years of experience creating high-quality learning materials. Your specialty is analyzing documents and creating precise, grammatically perfect flashcards and quiz questions that directly relate to the source material.
 
 DOCUMENT CONTENT TO ANALYZE:
 ${pdfContent.substring(0, 15000)}
 
-YOUR MISSION:
-1. DEEPLY ANALYZE the document to understand its core concepts, key information, and learning objectives
-2. IDENTIFY the most important knowledge that readers should retain and understand
-3. CREATE high-quality flashcards that highlight key points and promote understanding
-4. GENERATE quiz questions that effectively test comprehension of the document
+CRITICAL REQUIREMENTS:
+1. READ AND UNDERSTAND the document content completely before generating any materials
+2. ONLY create flashcards and questions based on information EXPLICITLY stated in the document
+3. Use PERFECT grammar, spelling, and sentence structure in all content
+4. Ensure ALL content is directly relevant to the document's subject matter
+5. NO generic or template-based content - everything must be document-specific
 
-PART 1 - FLASHCARD GENERATION:
-Create 12-15 flashcards that highlight the most important points from the document:
+FLASHCARD CREATION RULES:
+- Create exactly 10-12 flashcards
+- Each flashcard MUST be based on specific information from the document
+- Questions should be clear, specific, and grammatically perfect
+- Answers should be comprehensive but concise (2-4 sentences maximum)
+- Focus on: key definitions, important concepts, main processes, significant facts
+- Categories: Definition, Concept, Process, Fact, Application
 
-FLASHCARD REQUIREMENTS:
-- Focus on KEY CONCEPTS, DEFINITIONS, PROCESSES, and IMPORTANT FACTS from the document
-- Each flashcard should test meaningful understanding, not trivial details
-- Questions should be clear and specific to the document content
-- Answers should be comprehensive with context and significance
-- Include why the information is important or relevant
-- Categorize appropriately: Definition, Concept, Process, Principle, Application, Analysis
+QUIZ QUESTION CREATION RULES:
+- Create exactly 6-8 multiple choice questions
+- Each question MUST test understanding of content from the document
+- All 4 answer options must be plausible and related to the document's topic
+- Only ONE answer should be correct based on the document
+- Explanations should reference specific parts of the document
 
-PART 2 - QUIZ GENERATION:
-Create 8-12 multiple-choice questions that test understanding of the document:
+QUALITY STANDARDS:
+- Perfect grammar and spelling in ALL content
+- Clear, professional language
+- No repetitive or similar questions
+- Each item should add unique educational value
+- Content must be directly traceable to the source document
 
-QUIZ REQUIREMENTS:
-- Test COMPREHENSION and APPLICATION, not just memorization
-- Questions must be directly based on the document content
-- Create 4 plausible answer options for each question
-- Only one answer should be definitively correct
-- Wrong answers should be realistic but clearly incorrect based on the document
-- Provide detailed explanations that reference the document content
-
-CRITICAL INSTRUCTIONS:
-- Base ALL content strictly on the provided document
-- Ensure questions and answers are educationally valuable
-- Focus on information that demonstrates true understanding
-- Make content relevant to the document's subject matter and context
-- Avoid generic or template-based questions
-
-REQUIRED JSON FORMAT:
+OUTPUT FORMAT (JSON only):
 {
   "flashcards": [
     {
-      "id": "fc-1",
-      "question": "What is [specific concept from document] and why is it significant?",
-      "answer": "Comprehensive answer with definition, context, significance, and examples from the document. Explain why this concept matters in the context of the document's subject matter.",
+      "id": "fc-X",
+      "question": "Clear, specific question about document content",
+      "answer": "Precise, grammatically correct answer based on document information.",
       "category": "Definition"
     }
   ],
   "quizQuestions": [
     {
-      "id": "quiz-1", 
-      "question": "According to the document, which statement best describes [concept/process from document]?",
-      "options": ["Correct answer based on document", "Plausible but incorrect option", "Another realistic distractor", "Third believable wrong answer"],
+      "id": "quiz-X",
+      "question": "Clear question testing document comprehension",
+      "options": ["Correct answer", "Plausible wrong answer", "Another wrong answer", "Third wrong answer"],
       "correctAnswer": 0,
-      "explanation": "The correct answer is [option] because the document specifically states [reference to document content]. This is important because [significance]. The other options are incorrect because [brief explanation of why each is wrong based on document content]."
+      "explanation": "Clear explanation referencing the document content and why this answer is correct."
     }
   ]
 }
 
-FOCUS ON QUALITY AND EDUCATIONAL VALUE. Every flashcard and quiz question should genuinely help someone learn and understand the document content better.
+Remember: Quality over quantity. Every item must be grammatically perfect and directly relevant to the document.
 `;
 
     console.log('🔄 Sending analysis request to OpenAI...');
@@ -94,15 +88,15 @@ FOCUS ON QUALITY AND EDUCATIONAL VALUE. Every flashcard and quiz question should
       messages: [
         {
           role: "system",
-          content: "You are an expert educational content creator, learning scientist, and document analyst. You specialize in analyzing complex documents and creating highly effective learning materials that promote deep understanding, critical thinking, and long-term retention. You excel at identifying the most important information in any document and transforming it into engaging, educational content that facilitates meaningful learning."
+          content: "You are a world-class educational content creator with perfect grammar and writing skills. You create only high-quality, document-specific learning materials. You never use generic templates or create irrelevant content. Every flashcard and quiz question you generate is grammatically perfect, educationally valuable, and directly based on the source document provided."
         },
         {
           role: "user",
           content: analysisPrompt
         }
       ],
-      temperature: 0.2, // Lower temperature for more consistent, focused analysis
-      max_tokens: 4500 // Increased for comprehensive content
+      temperature: 0.1, // Very low temperature for consistent, high-quality output
+      max_tokens: 3500 // Optimized for quality content
     });
 
     const content = response.choices[0]?.message?.content;
