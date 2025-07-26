@@ -10,11 +10,18 @@ export const analyzeContentWithOpenAI = async (pdfContent: string): Promise<Cont
   console.log('🤖 Starting comprehensive PDF analysis...');
   console.log('📊 Content length:', pdfContent.length, 'characters');
   
-  if (!pdfContent || pdfContent.trim().length < 500) {
+  if (!pdfContent || pdfContent.trim().length < 300) {
     console.warn('PDF content too short for meaningful analysis');
     console.log('⚠️ Using LOCAL generation due to insufficient content');
     return generateLocalContent(pdfContent);
   }
+
+  // Calculate number of items based on content length
+  const contentLength = pdfContent.length;
+  const flashcardCount = Math.min(Math.max(Math.floor(contentLength / 2000), 6), 20); // 6-20 flashcards
+  const quizCount = Math.min(Math.max(Math.floor(contentLength / 3000), 4), 15); // 4-15 quiz questions
+  
+  console.log(`📊 Content-based generation: ${flashcardCount} flashcards, ${quizCount} quiz questions`);
 
   try {
     // Get OpenAI client from Supabase
@@ -33,10 +40,10 @@ export const analyzeContentWithOpenAI = async (pdfContent: string): Promise<Cont
     // Clean and prepare content for analysis
     const contentToAnalyze = cleanPDFContent(pdfContent).substring(0, 25000);
     
-    if (contentToAnalyze.length < 500) {
+    if (contentToAnalyze.length < 300) {
       console.warn('Cleaned content too short for analysis');
       console.log('⚠️ Using LOCAL generation due to insufficient cleaned content');
-      return generateLocalContent(pdfContent);
+      return generateLocalContent(pdfContent, flashcardCount, quizCount);
     }
 
     console.log(`📄 Analyzing ${contentToAnalyze.length} characters of content...`);
@@ -90,21 +97,26 @@ Create educational materials that are:
 - Grammatically perfect
 - Educationally valuable
 - Clear and well-structured
+- DISTINCT between flashcards and quiz questions (different question styles)
 
 FLASHCARD REQUIREMENTS:
-- Create exactly 8 flashcards
+- Create exactly ${flashcardCount} flashcards
 - Each flashcard must test specific knowledge from the document
 - Questions must be complete, grammatically correct sentences
 - Answers must be comprehensive (2-3 sentences minimum)
-- Use varied question types: "What is...", "How does...", "Why is...", "Explain...", "Describe..."
+- Use FLASHCARD-STYLE questions: "What is...", "Define...", "Explain the concept of...", "Describe...", "What does... mean?"
 - Categories: Definition, Concept, Process, Application, Analysis
+- Focus on DEFINITIONS, EXPLANATIONS, and CONCEPTUAL understanding
 
 QUIZ REQUIREMENTS:
-- Create exactly 6 multiple choice questions
+- Create exactly ${quizCount} multiple choice questions
 - Each question must test understanding of document content
 - All 4 options must be plausible but only one correct
 - Questions must be complete sentences
+- Use QUIZ-STYLE questions: "According to the document...", "Which of the following...", "What happens when...", "The document states that...", "Based on the text..."
+- Focus on FACTS, DETAILS, RELATIONSHIPS, and SPECIFIC INFORMATION
 - Provide detailed explanations for correct answers
+- Make questions DIFFERENT from flashcard questions (test different aspects)
 
 CRITICAL: Respond with ONLY valid JSON in this exact format:
 
@@ -112,7 +124,7 @@ CRITICAL: Respond with ONLY valid JSON in this exact format:
   "flashcards": [
     {
       "id": "fc-1",
-      "question": "Complete question sentence about specific document content?",
+      "question": "What is [concept] as described in the document?",
       "answer": "Comprehensive answer explaining the concept with context from the document. Additional details that help understanding.",
       "category": "Definition"
     }
@@ -120,7 +132,7 @@ CRITICAL: Respond with ONLY valid JSON in this exact format:
   "quizQuestions": [
     {
       "id": "quiz-1", 
-      "question": "Complete question sentence testing document understanding?",
+      "question": "According to the document, which of the following statements about [topic] is correct?",
       "options": ["Correct answer from document", "Plausible incorrect option", "Another incorrect option", "Third incorrect option"],
       "correctAnswer": 0,
       "explanation": "Detailed explanation of why this answer is correct based on the document content."
@@ -163,7 +175,7 @@ CRITICAL: Respond with ONLY valid JSON in this exact format:
   } catch (error) {
     console.error('❌ Error during OpenAI analysis:', error);
     console.log('🔄 FALLING BACK TO LOCAL GENERATION due to error');
-    return generateLocalContent(pdfContent);
+    return generateLocalContent(pdfContent, flashcardCount, quizCount);
   }
 };
 
@@ -255,38 +267,51 @@ const parseAndValidateResponse = (content: string): ContentAnalysisResult => {
 };
 
 // Enhanced local content generation as fallback
-const generateLocalContent = (content: string): ContentAnalysisResult => {
+const generateLocalContent = (content: string, flashcardCount: number = 8, quizCount: number = 6): ContentAnalysisResult => {
   console.log('🔧 GENERATING LOCAL CONTENT (NOT USING OPENAI)');
   console.log('📝 This means OpenAI was not used for this generation');
+  console.log(`📊 Generating ${flashcardCount} flashcards and ${quizCount} quiz questions`);
   
   const cleanedContent = cleanPDFContent(content);
   const sentences = cleanedContent.split(/[.!?]+/).filter(s => s.trim().length > 30);
   const paragraphs = cleanedContent.split(/\n\s*\n/).filter(p => p.trim().length > 100);
   
+  // Create more varied content pools
+  const keyTerms = extractKeyTerms(cleanedContent);
+  const importantSentences = sentences.filter(s => s.length > 80).slice(0, Math.max(flashcardCount, quizCount) * 2);
+  
   const flashcards: Flashcard[] = [];
   const quizQuestions: QuizQuestion[] = [];
   
   // Generate flashcards from key content
-  for (let i = 0; i < Math.min(8, sentences.length); i++) {
-    const sentence = sentences[i].trim();
+  for (let i = 0; i < Math.min(flashcardCount, importantSentences.length); i++) {
+    const sentence = importantSentences[i].trim();
     if (sentence.length > 50) {
       // Extract key terms and concepts
       const words = sentence.split(' ').filter(w => w.length > 4);
       const keyTerm = words[Math.floor(Math.random() * Math.min(3, words.length))];
       
       if (keyTerm) {
+        const questionTypes = [
+          `What is ${keyTerm.toLowerCase()} according to the document?`,
+          `Define ${keyTerm.toLowerCase()} as mentioned in the text.`,
+          `Explain the concept of ${keyTerm.toLowerCase()} from the document.`,
+          `Describe what ${keyTerm.toLowerCase()} means in this context.`,
+          `What does the document say about ${keyTerm.toLowerCase()}?`
+        ];
+        
         flashcards.push({
           id: `fc-${i + 1}`,
-          question: `What can you tell me about ${keyTerm.toLowerCase()} based on the document?`,
+          question: questionTypes[i % questionTypes.length],
           answer: `${sentence}. This information is important for understanding the key concepts discussed in the document and provides essential context for the subject matter.`,
-          category: i % 2 === 0 ? 'Concept' : 'Definition'
+          category: ['Definition', 'Concept', 'Process', 'Application', 'Analysis'][i % 5]
         });
       }
     }
   }
   
   // Generate quiz questions from paragraphs
-  for (let i = 0; i < Math.min(6, paragraphs.length); i++) {
+  for (let i = 0; i < Math.min(quizCount, paragraphs.length); i++) {
     const paragraph = paragraphs[i].trim();
     const sentences = paragraph.split(/[.!?]+/).filter(s => s.trim().length > 20);
     
@@ -297,14 +322,31 @@ const generateLocalContent = (content: string): ContentAnalysisResult => {
       if (words.length > 8) {
         const keyPhrase = words.slice(0, 4).join(' ');
         
+        const questionTypes = [
+          `According to the document, what is stated about ${keyPhrase.toLowerCase()}?`,
+          `Which of the following best describes ${keyPhrase.toLowerCase()}?`,
+          `The document indicates that ${keyPhrase.toLowerCase()}:`,
+          `Based on the text, ${keyPhrase.toLowerCase()} is characterized by:`,
+          `What does the document reveal about ${keyPhrase.toLowerCase()}?`
+        ];
+        
+        const distractors = [
+          'It serves as a primary research methodology for data collection.',
+          'It represents a theoretical framework for comprehensive analysis.',
+          'It functions as a measurement tool for quantitative evaluation.',
+          'It operates as a systematic approach to problem-solving.',
+          'It provides a structured method for information processing.',
+          'It establishes guidelines for procedural implementation.'
+        ];
+        
         quizQuestions.push({
           id: `quiz-${i + 1}`,
-          question: `According to the document, what is stated about ${keyPhrase.toLowerCase()}?`,
+          question: questionTypes[i % questionTypes.length],
           options: [
             mainSentence.length > 80 ? mainSentence.substring(0, 80) + '...' : mainSentence,
-            'It serves as a primary research methodology.',
-            'It represents a theoretical framework for analysis.',
-            'It functions as a measurement tool for evaluation.'
+            distractors[i % distractors.length],
+            distractors[(i + 1) % distractors.length],
+            distractors[(i + 2) % distractors.length]
           ],
           correctAnswer: 0,
           explanation: `The correct answer is directly stated in the document. This information provides important context for understanding the main concepts and themes presented in the material.`
@@ -317,6 +359,24 @@ const generateLocalContent = (content: string): ContentAnalysisResult => {
   console.log(`❓ Generated ${quizQuestions.length} local quiz questions`);
   
   return { flashcards, quizQuestions };
+};
+
+// Helper function to extract key terms from content
+const extractKeyTerms = (content: string): string[] => {
+  const words = content.toLowerCase()
+    .replace(/[^\w\s]/g, ' ')
+    .split(/\s+/)
+    .filter(word => word.length > 5);
+  
+  const wordFreq = words.reduce((acc, word) => {
+    acc[word] = (acc[word] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+  
+  return Object.entries(wordFreq)
+    .sort(([,a], [,b]) => b - a)
+    .slice(0, 20)
+    .map(([word]) => word);
 };
 
 // Legacy functions for backward compatibility
