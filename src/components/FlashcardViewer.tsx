@@ -88,11 +88,11 @@ const FlashcardViewer: React.FC<FlashcardViewerProps> = ({ flashcards, onBack })
           <div className="absolute inset-0 w-full h-full backface-hidden rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-600 p-8 flex flex-col justify-center items-center text-white shadow-xl">
             <div className="text-center">
               <div className="mb-4">
-                <span className="px-4 py-2 bg-white/20 rounded-full text-sm font-semibold uppercase tracking-wide">
+                <span className="px-4 py-2 bg-white/20 rounded-full text-sm font-semibold tracking-wide">
                   {currentCard.category}
                 </span>
               </div>
-              <h3 className="text-2xl font-bold mb-6 leading-relaxed">{currentCard.question}</h3>
+              <h3 className="text-xl font-bold mb-6 leading-relaxed max-w-2xl">{currentCard.question}</h3>
               <p className="text-blue-100 text-lg">Click to reveal answer</p>
             </div>
           </div>
@@ -101,11 +101,31 @@ const FlashcardViewer: React.FC<FlashcardViewerProps> = ({ flashcards, onBack })
           <div className="absolute inset-0 w-full h-full backface-hidden rotate-y-180 rounded-2xl bg-gradient-to-br from-green-600 to-emerald-600 p-8 flex flex-col justify-center items-center text-white shadow-xl">
             <div className="text-center">
               <div className="mb-4">
-                <span className="px-4 py-2 bg-white/20 rounded-full text-sm font-semibold uppercase tracking-wide">
+                <span className="px-4 py-2 bg-white/20 rounded-full text-sm font-semibold tracking-wide">
                   Answer
                 </span>
               </div>
-              <p className="text-xl leading-relaxed max-w-2xl">{currentCard.answer}</p>
+              <div className="text-lg leading-relaxed max-w-3xl">
+                {currentCard.answer.split('\n\n').map((paragraph, index) => (
+                  <p key={index} className={index > 0 ? 'mt-4' : ''}>
+                    {paragraph.startsWith('Context:') ? (
+                      <span className="text-green-200 italic">{paragraph}</span>
+                    ) : paragraph.startsWith('Significance:') ? (
+                      <span className="text-green-200 font-medium">{paragraph}</span>
+                    ) : paragraph.startsWith('Examples:') ? (
+                      <span className="text-green-200">{paragraph}</span>
+                    ) : paragraph.startsWith('Steps:') ? (
+                      <span className="text-left block">{paragraph}</span>
+                    ) : paragraph.startsWith('Purpose:') || paragraph.startsWith('Outcome:') ? (
+                      <span className="text-green-200 font-medium">{paragraph}</span>
+                    ) : paragraph.startsWith('Applications:') ? (
+                      <span className="text-green-200">{paragraph}</span>
+                    ) : (
+                      paragraph
+                    )}
+                  </p>
+                ))}
+              </div>
             </div>
           </div>
         </div>

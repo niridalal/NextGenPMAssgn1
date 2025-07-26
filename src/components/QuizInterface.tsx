@@ -147,7 +147,7 @@ const QuizInterface: React.FC<QuizInterfaceProps> = ({ questions, onBack }) => {
       {/* Question */}
       <div className="bg-white rounded-3xl shadow-xl overflow-hidden">
         <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-8 py-6">
-          <h3 className="text-xl font-bold text-white">
+          <h3 className="text-lg font-bold text-white leading-relaxed">
             {currentQuestion.question}
           </h3>
         </div>
@@ -196,9 +196,21 @@ const QuizInterface: React.FC<QuizInterfaceProps> = ({ questions, onBack }) => {
           </div>
 
           {showResults && (
-            <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-xl">
+            <div className="mt-6 p-6 bg-blue-50 border border-blue-200 rounded-xl">
               <h4 className="font-bold text-blue-900 mb-2">Explanation</h4>
-              <p className="text-blue-800 leading-relaxed">{currentQuestion.explanation}</p>
+              <div className="text-blue-800 leading-relaxed">
+                {currentQuestion.explanation.split('\n\n').map((paragraph, index) => (
+                  <p key={index} className={index > 0 ? 'mt-3' : ''}>
+                    {paragraph.startsWith('This is important because') || paragraph.startsWith('This is significant because') ? (
+                      <span className="font-medium italic">{paragraph}</span>
+                    ) : paragraph.startsWith('Full context:') ? (
+                      <span className="text-blue-700">{paragraph}</span>
+                    ) : (
+                      paragraph
+                    )}
+                  </p>
+                ))}
+              </div>
             </div>
           )}
 
