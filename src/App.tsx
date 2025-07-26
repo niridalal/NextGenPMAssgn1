@@ -1,20 +1,23 @@
 import React, { useState } from 'react';
-import { BookOpen, CreditCard, Brain, FileText } from 'lucide-react';
+import { BookOpen, CreditCard, Brain, FileText, Upload, TrendingUp } from 'lucide-react';
 import { useAuth } from './contexts/AuthContext';
 import SignInPage from './components/SignInPage';
 import UserMenu from './components/UserMenu';
 import PDFUploader from './components/PDFUploader';
 import FlashcardViewer from './components/FlashcardViewer';
 import QuizInterface from './components/QuizInterface';
-import { Flashcard, QuizQuestion } from './types';
+import ProgressTracker from './components/ProgressTracker';
+import { Flashcard, QuizQuestion, PDFProgress } from './types';
 import { extractTextFromPDF } from './utils/pdfProcessor';
 import { analyzeContentWithOpenAI } from './utils/contentGenerator';
 
-type ActiveView = 'upload' | 'flashcards' | 'quiz';
+type ActiveView = 'home' | 'flashcards' | 'quiz';
+type HomeTab = 'upload' | 'progress';
 
 function App() {
   const { user, loading } = useAuth();
-  const [activeView, setActiveView] = useState<ActiveView>('upload');
+  const [activeView, setActiveView] = useState<ActiveView>('home');
+  const [activeHomeTab, setActiveHomeTab] = useState<HomeTab>('upload');
   const [pdfData, setPdfData] = useState<{ filename: string; content: string } | null>(null);
   const [flashcards, setFlashcards] = useState<Flashcard[]>([]);
   const [quizQuestions, setQuizQuestions] = useState<QuizQuestion[]>([]);
@@ -22,6 +25,40 @@ function App() {
   const [processingStep, setProcessingStep] = useState('');
   const [processingProgress, setProcessingProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
+
+  // Mock progress data - in a real app, this would come from a database
+  const [progressData] = useState<PDFProgress[]>([
+    {
+      id: 'pdf-1',
+      filename: 'Machine Learning Fundamentals.pdf',
+      flashcardsTotal: 15,
+      flashcardsCompleted: 8,
+      quizTotal: 10,
+      quizCompleted: 3,
+      lastAccessed: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), // 2 hours ago
+      createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(), // 1 day ago
+    },
+    {
+      id: 'pdf-2',
+      filename: 'Data Structures and Algorithms.pdf',
+      flashcardsTotal: 20,
+      flashcardsCompleted: 20,
+      quizTotal: 12,
+      quizCompleted: 9,
+      lastAccessed: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(), // 6 hours ago
+      createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), // 3 days ago
+    },
+    {
+      id: 'pdf-3',
+      filename: 'React Development Guide.pdf',
+      flashcardsTotal: 12,
+      flashcardsCompleted: 2,
+      quizTotal: 8,
+      quizCompleted: 0,
+      lastAccessed: new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString(), // 12 hours ago
+      createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), // 2 days ago
+    },
+  ]);
 
   // Show loading spinner while checking authentication
   if (loading) {
@@ -121,13 +158,21 @@ function App() {
   };
 
   const handleBackToUpload = () => {
-    setActiveView('upload');
+    setActiveView('home');
+    setActiveHomeTab('upload');
     setPdfData(null);
     setFlashcards([]);
     setQuizQuestions([]);
     setError(null);
     setProcessingStep('');
     setProcessingProgress(0);
+  };
+
+  const handleSelectPDF = (pdfId: string) => {
+    // In a real app, you would load the PDF data and progress from database
+    console.log('Selected PDF:', pdfId);
+    // For now, just switch to flashcards view
+    setActiveView('flashcards');
   };
 
   return (
@@ -152,7 +197,7 @@ function App() {
         </div>
 
         {/* Navigation */}
-        {pdfData && (
+        {activeView !== 'home' && pdfData && (
           <div className="flex justify-center mb-8">
             <div className="bg-white rounded-2xl p-2 shadow-lg inline-flex">
               <button
@@ -197,15 +242,60 @@ function App() {
 
         {/* Content */}
         <div className="max-w-6xl mx-auto">
-          {activeView === 'upload' ? (
+          {activeView === 'home' ? (
             <div className="bg-white rounded-3xl shadow-xl p-12">
-              <PDFUploader
-                onFileSelect={handleFileSelect}
-                isProcessing={isProcessing}
-                processingStep={processingStep}
-                processingProgress={processingProgress}
-                error={error}
-              />
+              {/* Home Tabs */}
+              <div className="flex justify-center mb-8">
+                <div className="bg-gray-100 rounded-2xl p-2 inline-flex">
+                  <button
+                    onClick={() => setActiveHomeTab('upload')}
+                    className={`
+                      flex items-center space-x-2 px-6 py-3 rounded-xl font-semibold transition-all duration-200
+                      ${activeHomeTab === 'upload'
+                        ? 'bg-white text-blue-600 shadow-md'
+                        : 'text-gray-600 hover:text-gray-800'
+                      }
+                    `}
+                  >
+                    <Upload className="h-5 w-5" />
+                    <span>Upload New PDF</span>
+                  </button>
+                  <button
+                    onClick={() => setActiveHomeTab('progress')}
+                    className={`
+                      flex items-center space-x-2 px-6 py-3 rounded-xl font-semibold transition-all duration-200
+                      ${activeHomeTab === 'progress'
+                        ? 'bg-white text-indigo-600 shadow-md'
+                        : 'text-gray-600 hover:text-gray-800'
+                      }
+                    `}
+                  >
+                    <TrendingUp className="h-5 w-5" />
+                    <span>In Progress PDFs</span>
+                    {progressData.length > 0 && (
+                      <span className="ml-1 px-2 py-0.5 text-xs bg-indigo-100 text-indigo-700 rounded-full">
+                        {progressData.length}
+                      </span>
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {/* Tab Content */}
+              {activeHomeTab === 'upload' ? (
+                <PDFUploader
+                  onFileSelect={handleFileSelect}
+                  isProcessing={isProcessing}
+                  processingStep={processingStep}
+                  processingProgress={processingProgress}
+                  error={error}
+                />
+              ) : (
+                <ProgressTracker
+                  progressData={progressData}
+                  onSelectPDF={handleSelectPDF}
+                />
+              )}
             </div>
           ) : activeView === 'flashcards' ? (
             <div className="bg-white rounded-3xl shadow-xl p-12">

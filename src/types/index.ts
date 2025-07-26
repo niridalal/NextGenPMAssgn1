@@ -20,3 +20,14 @@ export interface PDFDocument {
   pageCount: number;
   createdAt: string;
 }
+
+export interface PDFProgress {
+  id: string;
+  filename: string;
+  flashcardsTotal: number;
+  flashcardsCompleted: number;
+  quizTotal: number;
+  quizCompleted: number;
+  lastAccessed: string;
+  createdAt: string;
+}
