@@ -1,6 +1,5 @@
 import React, { useCallback } from 'react';
-import { Upload, FileText, AlertCircle, Loader2, Settings } from 'lucide-react';
-import { isOpenAIConfigured, getOpenAIClient } from '../lib/openai';
+import { Upload, FileText, AlertCircle } from 'lucide-react';
 
 interface PDFUploaderProps {
   onFileSelect: (file: File) => void;
@@ -17,37 +16,6 @@ const PDFUploader: React.FC<PDFUploaderProps> = ({
   processingProgress = 0,
   error 
 }) => {
-  const [openAIConfigured, setOpenAIConfigured] = React.useState<boolean | null>(null);
-  const [connectionStatus, setConnectionStatus] = React.useState<string>('Checking...');
-
-  React.useEffect(() => {
-    const checkOpenAI = async () => {
-      console.log('🔍 Checking OpenAI configuration...');
-      const configured = await isOpenAIConfigured();
-      console.log('✅ OpenAI configured:', configured);
-      setOpenAIConfigured(configured);
-      
-      if (configured) {
-        try {
-          const client = await getOpenAIClient();
-          if (client) {
-            setConnectionStatus('✅ Connected and ready');
-            console.log('🤖 OpenAI client successfully initialized');
-          } else {
-            setConnectionStatus('❌ Client initialization failed');
-            console.log('❌ Failed to initialize OpenAI client');
-          }
-        } catch (error) {
-          setConnectionStatus('❌ Connection error');
-          console.error('❌ OpenAI connection error:', error);
-        }
-      } else {
-        setConnectionStatus('⚠️ API key not configured');
-      }
-    };
-    checkOpenAI();
-  }, []);
-
   const handleDrop = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     const files = Array.from(e.dataTransfer.files);
