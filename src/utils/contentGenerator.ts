@@ -1,5 +1,5 @@
 import { Flashcard, QuizQuestion } from '../types';
-import { openai } from '../lib/openai';
+import { getOpenAIClient } from '../lib/openai';
 
 interface ContentAnalysisResult {
   flashcards: Flashcard[];
@@ -14,10 +14,12 @@ export const analyzeContentWithOpenAI = async (pdfContent: string): Promise<Cont
     return generateLocalContent(pdfContent);
   }
 
-  // Check if OpenAI is available
+  // Get OpenAI client from Supabase
+  const openai = await getOpenAIClient();
+  
   if (!openai) {
-    console.warn('⚠️ OpenAI API key not provided or client not initialized, using local generation');
-    console.log('💡 To use OpenAI: Add VITE_OPENAI_API_KEY to your .env file');
+    console.warn('⚠️ OpenAI client not available, using local generation');
+    console.log('💡 To use OpenAI: Add OPENAI_API_KEY to your Supabase app_settings table');
     return generateLocalContent(pdfContent);
   }
 
