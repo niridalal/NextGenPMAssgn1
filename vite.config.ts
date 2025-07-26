@@ -7,4 +7,9 @@ export default defineConfig({
   optimizeDeps: {
     exclude: ['lucide-react'],
   },
+  define: {
+    // Disable Sentry in development
+    __SENTRY_DEBUG__: false,
+    __SENTRY_TRACING__: false,
+  },
 });
