@@ -162,6 +162,36 @@ Create questions that would effectively assess someone's understanding of this m
   }
 };
 
+export async function generateFlashcardsAndQuiz(text: string): Promise<{ flashcards: Flashcard[], quiz: QuizQuestion[] }> {
+  try {
+    // Check if OpenAI is available
+    if (!openai) {
+      console.log('OpenAI API key not provided, using local generation');
+      return generateLocalContent(text);
+    }
+
+    // Split text into chunks if it's too long (OpenAI has token limits)
+    const maxChunkSize = 8000; // Conservative limit
+
+    const [flashcards, quiz] = await Promise.all([
+      generateFlashcards(text),
+      generateQuizQuestions(text)
+    ]);
+
+    return { flashcards, quiz };
+  } catch (error) {
+    console.error('Error generating content:', error);
+    return generateLocalContent(text);
+  }
+}
+
+function generateLocalContent(text: string): { flashcards: Flashcard[], quiz: QuizQuestion[] } {
+  return {
+    flashcards: generateLocalFlashcards(text),
+    quiz: generateLocalQuizQuestions(text)
+  };
+}
+
 // Fallback local generation functions (simplified versions)
 const generateLocalFlashcards = (content: string): Flashcard[] => {
   const sentences = content.split(/[.!?]+/).filter(s => s.trim().length > 50);
