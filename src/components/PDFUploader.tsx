@@ -1,6 +1,6 @@
 import React, { useCallback } from 'react';
 import { Upload, FileText, AlertCircle, Loader2, Settings } from 'lucide-react';
-import { isOpenAIConfigured } from '../lib/openai';
+import { isOpenAIConfigured, getOpenAIClient } from '../lib/openai';
 
 interface PDFUploaderProps {
   onFileSelect: (file: File) => void;
@@ -14,11 +14,32 @@ const PDFUploader: React.FC<PDFUploaderProps> = ({
   error 
 }) => {
   const [openAIConfigured, setOpenAIConfigured] = React.useState<boolean | null>(null);
+  const [connectionStatus, setConnectionStatus] = React.useState<string>('Checking...');
 
   React.useEffect(() => {
     const checkOpenAI = async () => {
+      console.log('🔍 Checking OpenAI configuration...');
       const configured = await isOpenAIConfigured();
+      console.log('✅ OpenAI configured:', configured);
       setOpenAIConfigured(configured);
+      
+      if (configured) {
+        try {
+          const client = await getOpenAIClient();
+          if (client) {
+            setConnectionStatus('✅ Connected and ready');
+            console.log('🤖 OpenAI client successfully initialized');
+          } else {
+            setConnectionStatus('❌ Client initialization failed');
+            console.log('❌ Failed to initialize OpenAI client');
+          }
+        } catch (error) {
+          setConnectionStatus('❌ Connection error');
+          console.error('❌ OpenAI connection error:', error);
+        }
+      } else {
+        setConnectionStatus('⚠️ API key not configured');
+      }
     };
     checkOpenAI();
   }, []);
@@ -103,11 +124,27 @@ const PDFUploader: React.FC<PDFUploaderProps> = ({
             <div>
               <p className="text-amber-800 font-medium">OpenAI API Key Required</p>
               <p className="text-amber-700 text-sm mt-1">
-                Please add your OpenAI API key to the app_settings table in Supabase for AI-powered content generation.
+                Please add your OpenAI API key to the app_settings table in Supabase.
                 <br />
-                <span className="font-mono text-xs">UPDATE app_settings SET value = 'your-api-key' WHERE key = 'OPENAI_API_KEY';</span>
+                <span className="font-mono text-xs bg-amber-100 px-2 py-1 rounded">
+                  UPDATE app_settings SET value = 'sk-your-api-key' WHERE key = 'OPENAI_API_KEY';
+                </span>
               </p>
             </div>
+          </div>
+        </div>
+      )}
+      
+      {openAIConfigured !== null && (
+        <div className="mt-4 text-center">
+          <div className={`inline-flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium ${
+            connectionStatus.includes('✅') 
+              ? 'bg-green-50 text-green-700 border border-green-200'
+              : connectionStatus.includes('❌')
+              ? 'bg-red-50 text-red-700 border border-red-200'
+              : 'bg-yellow-50 text-yellow-700 border border-yellow-200'
+          }`}>
+            <span>OpenAI Status: {connectionStatus}</span>
           </div>
         </div>
       )}

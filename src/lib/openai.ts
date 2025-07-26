@@ -48,10 +48,14 @@ const initializeOpenAI = async (): Promise<OpenAI | null> => {
 
 // Get OpenAI client (initialize if needed)
 export const getOpenAIClient = async (): Promise<OpenAI | null> => {
+  console.log('🔍 Getting OpenAI client...');
+  
   if (openaiClient && apiKeyCache) {
+    console.log('✅ Using cached OpenAI client');
     return openaiClient;
   }
   
+  console.log('🔄 Initializing new OpenAI client...');
   return await initializeOpenAI();
 };
 
