@@ -11,7 +11,6 @@ import { Flashcard, QuizQuestion, PDFProgress } from './types';
 import { extractTextFromPDF } from './utils/pdfProcessor';
 import { analyzeContentWithOpenAI } from './utils/contentGenerator';
 import { supabase } from './lib/supabase';
-import { useAuth } from './contexts/AuthContext';
 
 type ActiveView = 'home' | 'flashcards' | 'quiz';
 type HomeTab = 'upload' | 'progress';
