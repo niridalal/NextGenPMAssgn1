@@ -5,19 +5,11 @@ import { Flashcard } from '../types';
 interface FlashcardViewerProps {
   flashcards: Flashcard[];
   onGoHome?: () => void;
-  onProgressChange?: (index: number) => void;
-  initialIndex?: number;
 }
 
-const FlashcardViewer: React.FC<FlashcardViewerProps> = ({ flashcards, onGoHome, onProgressChange, initialIndex = 0 }) => {
-  const [currentIndex, setCurrentIndex] = useState(initialIndex);
+const FlashcardViewer: React.FC<FlashcardViewerProps> = ({ flashcards, onGoHome }) => {
+  const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
-
-  // Update current index when initialIndex prop changes
-  React.useEffect(() => {
-    setCurrentIndex(initialIndex);
-    setIsFlipped(false);
-  }, [initialIndex]);
 
   const currentCard = flashcards[currentIndex];
 
@@ -25,7 +17,6 @@ const FlashcardViewer: React.FC<FlashcardViewerProps> = ({ flashcards, onGoHome,
     if (flashcards.length > 0) {
       const newIndex = (currentIndex + 1) % flashcards.length;
       setCurrentIndex(newIndex);
-      onProgressChange?.(newIndex);
     }
     setIsFlipped(false);
   };
@@ -34,7 +25,6 @@ const FlashcardViewer: React.FC<FlashcardViewerProps> = ({ flashcards, onGoHome,
     if (flashcards.length > 0) {
       const newIndex = (currentIndex - 1 + flashcards.length) % flashcards.length;
       setCurrentIndex(newIndex);
-      onProgressChange?.(newIndex);
     }
     setIsFlipped(false);
   };

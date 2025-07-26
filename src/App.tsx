@@ -6,14 +6,13 @@ import FlashcardViewer from './components/FlashcardViewer';
 import QuizInterface from './components/QuizInterface';
 import ProfileDropdown from './components/ProfileDropdown';
 import DocumentLibrary from './components/DocumentLibrary';
-import InProgressDocuments from './components/InProgressDocuments';
 import { supabase } from './lib/supabase';
 import { PDFData, Flashcard, QuizQuestion } from './types';
 import { extractTextFromPDF } from './utils/pdfProcessor';
 import { generateFlashcards, generateQuizQuestions } from './utils/contentGenerator';
 import { User } from '@supabase/supabase-js';
 
-type ActiveTab = 'upload' | 'flashcards' | 'quiz' | 'documents' | 'progress';
+type ActiveTab = 'upload' | 'flashcards' | 'quiz' | 'documents';
 
 interface Document {
   id: string;
@@ -24,11 +23,6 @@ interface Document {
   updated_at: string;
   flashcard_count?: number;
   quiz_count?: number;
-}
-
-interface DocumentProgress {
-  tab: 'flashcards' | 'quiz';
-  index: number;
 }
 
 function App() {
@@ -50,7 +44,6 @@ function MainApp({ user }: MainAppProps) {
   const [flashcards, setFlashcards] = useState<Flashcard[]>([]);
   const [quizQuestions, setQuizQuestions] = useState<QuizQuestion[]>([]);
   const [documents, setDocuments] = useState<Document[]>([]);
-  const [documentProgress, setDocumentProgress] = useState<{[key: string]: DocumentProgress}>({});
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingStage, setProcessingStage] = useState('');
   const [processingProgress, setProcessingProgress] = useState(0);
@@ -59,7 +52,6 @@ function MainApp({ user }: MainAppProps) {
   // Load documents and progress on component mount
   React.useEffect(() => {
     fetchDocuments();
-    loadProgress();
   }, [user]);
 
   const fetchDocuments = async () => {
@@ -107,26 +99,6 @@ function MainApp({ user }: MainAppProps) {
     }
   };
 
-  const loadProgress = () => {
-    const saved = localStorage.getItem(`documentProgress_${user.id}`);
-    if (saved) {
-      try {
-        setDocumentProgress(JSON.parse(saved));
-      } catch (e) {
-        console.error('Error loading progress:', e);
-      }
-    }
-  };
-
-  const saveProgress = (docId: string, tab: 'flashcards' | 'quiz', index: number) => {
-    const newProgress = {
-      ...documentProgress,
-      [docId]: { tab, index }
-    };
-    setDocumentProgress(newProgress);
-    localStorage.setItem(`documentProgress_${user.id}`, JSON.stringify(newProgress));
-  };
-
   const handleDocumentSelect = async (document: Document) => {
     try {
       setCurrentDocument(document);
@@ -171,13 +143,8 @@ function MainApp({ user }: MainAppProps) {
         setQuizQuestions(formattedQuestions);
       }
 
-      // Switch to appropriate tab based on progress
-      const progress = documentProgress[document.id];
-      if (progress) {
-        setActiveTab(progress.tab);
-      } else {
-        setActiveTab('flashcards');
-      }
+      // Switch to flashcards tab
+      setActiveTab('flashcards');
     } catch (error: any) {
       console.error('Error loading document:', error);
       setError(error.message);
@@ -295,24 +262,12 @@ function MainApp({ user }: MainAppProps) {
     setError(null);
   };
 
-  const handleProgressChange = (tab: 'flashcards' | 'quiz', index: number) => {
-    if (currentDocument) {
-      saveProgress(currentDocument.id, tab, index);
-    }
-  };
-
   const tabs = [
     { id: 'upload' as const, label: 'Upload PDF', icon: FileText },
     { id: 'flashcards' as const, label: 'Flashcards', icon: CreditCard },
     { id: 'quiz' as const, label: 'Quiz', icon: Brain },
-    { id: 'progress' as const, label: 'In Progress', icon: Clock },
   ];
 
-  // Filter documents for in-progress view
-  const inProgressDocuments = documents.filter(doc => 
-    documentProgress[doc.id] && 
-    ((doc.flashcard_count && doc.flashcard_count > 0) || (doc.quiz_count && doc.quiz_count > 0))
-  );
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-violet-50 via-purple-50/40 to-indigo-100/60 relative overflow-hidden">
@@ -411,11 +366,6 @@ function MainApp({ user }: MainAppProps) {
                       {documents.length}
                     </span>
                   )}
-                  {tab.id === 'progress' && inProgressDocuments.length > 0 && (
-                    <span className={`ml-1 px-2 py-0.5 text-xs font-bold rounded-full ${isActive ? 'bg-white/20 text-white' : 'bg-green-100 text-green-700'}`}>
-                      {inProgressDocuments.length}
-                    </span>
-                  )}
                 </button>
               );
             })}
@@ -444,8 +394,6 @@ function MainApp({ user }: MainAppProps) {
                 <FlashcardViewer 
                   flashcards={flashcards} 
                   onGoHome={handleGoHome}
-                  onProgressChange={(index) => handleProgressChange('flashcards', index)}
-                  initialIndex={currentDocument ? documentProgress[currentDocument.id]?.tab === 'flashcards' ? documentProgress[currentDocument.id]?.index || 0 : 0 : 0}
                 />
               </div>
             </div>
@@ -456,29 +404,6 @@ function MainApp({ user }: MainAppProps) {
                 <QuizInterface 
                   questions={quizQuestions} 
                   onGoHome={handleGoHome}
-                  onProgressChange={(index) => handleProgressChange('quiz', index)}
-                  initialIndex={currentDocument ? documentProgress[currentDocument.id]?.tab === 'quiz' ? documentProgress[currentDocument.id]?.index || 0 : 0 : 0}
-                />
-              </div>
-            </div>
-          ) : activeTab === 'documents' ? (
-            <div className="bg-white/95 backdrop-blur-md rounded-3xl shadow-2xl border border-white/30 p-12 relative">
-              <div className="absolute inset-0 bg-gradient-to-br from-green-50/30 to-blue-50/30 rounded-3xl"></div>
-              <div className="relative z-10">
-                <DocumentLibrary 
-                  user={user} 
-                  onDocumentSelect={handleDocumentSelect}
-                />
-              </div>
-            </div>
-          ) : activeTab === 'progress' ? (
-            <div className="bg-white/95 backdrop-blur-md rounded-3xl shadow-2xl border border-white/30 p-12 relative">
-              <div className="absolute inset-0 bg-gradient-to-br from-teal-50/30 to-green-50/30 rounded-3xl"></div>
-              <div className="relative z-10">
-                <InProgressDocuments 
-                  documents={inProgressDocuments}
-                  documentProgress={documentProgress}
-                  onDocumentSelect={handleDocumentSelect}
                 />
               </div>
             </div>

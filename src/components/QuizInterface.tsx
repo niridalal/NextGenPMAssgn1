@@ -5,12 +5,10 @@ import { QuizQuestion } from '../types';
 interface QuizInterfaceProps {
   questions: QuizQuestion[];
   onGoHome?: () => void;
-  onProgressChange?: (index: number) => void;
-  initialIndex?: number;
 }
 
-const QuizInterface: React.FC<QuizInterfaceProps> = ({ questions, onGoHome, onProgressChange, initialIndex = 0 }) => {
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(initialIndex);
+const QuizInterface: React.FC<QuizInterfaceProps> = ({ questions, onGoHome }) => {
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [selectedAnswers, setSelectedAnswers] = useState<number[]>([]);
   const [showResults, setShowResults] = useState(false);
   const [quizCompleted, setQuizCompleted] = useState(false);
@@ -32,13 +30,7 @@ const QuizInterface: React.FC<QuizInterfaceProps> = ({ questions, onGoHome, onPr
 
   // Update current question index when initialIndex prop changes
   React.useEffect(() => {
-    setCurrentQuestionIndex(initialIndex);
     setShowResults(false);
-    // If there's saved progress, automatically start the quiz
-    if (initialIndex > 0) {
-      setQuizStarted(true);
-    }
-  }, [initialIndex]);
 
   const currentQuestion = questions[currentQuestionIndex];
   const userAnswer = selectedAnswers[currentQuestionIndex];
@@ -56,7 +48,6 @@ const QuizInterface: React.FC<QuizInterfaceProps> = ({ questions, onGoHome, onPr
     if (currentQuestionIndex < questions.length - 1) {
       const newIndex = currentQuestionIndex + 1;
       setCurrentQuestionIndex(newIndex);
-      onProgressChange?.(newIndex);
       setShowResults(false);
     } else {
       setQuizCompleted(true);
@@ -79,7 +70,6 @@ const QuizInterface: React.FC<QuizInterfaceProps> = ({ questions, onGoHome, onPr
     setQuizCompleted(false);
     setQuizStarted(false);
     setTimeRemaining(0);
-    onProgressChange?.(0);
     if (timerInterval) {
       clearInterval(timerInterval);
       setTimerInterval(null);
