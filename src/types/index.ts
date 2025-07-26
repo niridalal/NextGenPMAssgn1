@@ -1,26 +1,22 @@
 export interface Flashcard {
-  id: number;
+  id: string;
   question: string;
   answer: string;
-  category?: string;
+  category: string;
 }
 
 export interface QuizQuestion {
-  id: number;
+  id: string;
   question: string;
   options: string[];
   correctAnswer: number;
-  explanation?: string;
+  explanation: string;
 }
 
-export interface Quiz {
-  id: number;
-  title: string;
-  questions: QuizQuestion[];
-}
-
-export interface PDFData {
+export interface PDFDocument {
+  id: string;
   filename: string;
-  text: string;
+  content: string;
   pageCount: number;
+  createdAt: string;
 }
