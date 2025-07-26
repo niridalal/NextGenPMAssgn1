@@ -117,38 +117,6 @@ const PDFUploader: React.FC<PDFUploaderProps> = ({
         </div>
       </div>
       
-      {openAIConfigured === false && (
-        <div className="mt-6 p-4 bg-amber-50 border border-amber-200 rounded-xl">
-          <div className="flex items-center space-x-3">
-            <Settings className="h-5 w-5 text-amber-600" />
-            <div>
-              <p className="text-amber-800 font-medium">OpenAI API Key Required</p>
-              <p className="text-amber-700 text-sm mt-1">
-                Please add your OpenAI API key to the app_settings table in Supabase.
-                <br />
-                <span className="font-mono text-xs bg-amber-100 px-2 py-1 rounded">
-                  UPDATE app_settings SET value = 'sk-your-api-key' WHERE key = 'OPENAI_API_KEY';
-                </span>
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-      
-      {openAIConfigured !== null && (
-        <div className="mt-4 text-center">
-          <div className={`inline-flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium ${
-            connectionStatus.includes('✅') 
-              ? 'bg-green-50 text-green-700 border border-green-200'
-              : connectionStatus.includes('❌')
-              ? 'bg-red-50 text-red-700 border border-red-200'
-              : 'bg-yellow-50 text-yellow-700 border border-yellow-200'
-          }`}>
-            <span>OpenAI Status: {connectionStatus}</span>
-          </div>
-        </div>
-      )}
-      
       {error && (
         <div className="mt-6 p-4 bg-red-50 border border-red-200 rounded-xl">
           <div className="flex items-center space-x-3">
