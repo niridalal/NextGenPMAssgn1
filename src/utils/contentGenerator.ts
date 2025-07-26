@@ -9,7 +9,7 @@ interface ContentAnalysisResult {
 export const analyzeContentWithOpenAI = async (pdfContent: string): Promise<ContentAnalysisResult> => {
   console.log('🤖 Starting comprehensive PDF analysis with OpenAI...');
   
-  if (!pdfContent || pdfContent.trim().length < 100) {
+  if (!pdfContent || pdfContent.trim().length < 200) {
     console.warn('PDF content too short for meaningful analysis');
     return { flashcards: [], quizQuestions: [] };
   }
@@ -21,82 +21,110 @@ export const analyzeContentWithOpenAI = async (pdfContent: string): Promise<Cont
   }
 
   try {
-    // Comprehensive content analysis prompt
+    console.log('📖 Analyzing document content thoroughly...');
+    
+    // Take more content for better analysis (up to 20,000 characters)
+    const contentToAnalyze = pdfContent.substring(0, 20000);
+    
+    // Multi-step analysis prompt for better understanding
     const analysisPrompt = `
-You are an expert educational content creator and learning scientist. You have a PhD in Education and 15+ years of experience creating high-quality learning materials. Your specialty is analyzing documents and creating precise, grammatically perfect flashcards and quiz questions that directly relate to the source material.
+ROLE: You are a world-class educational content creator with expertise in learning science, curriculum design, and assessment creation. You have 20+ years of experience creating high-quality educational materials.
 
-DOCUMENT CONTENT TO ANALYZE:
-${pdfContent.substring(0, 15000)}
+TASK: Carefully read and analyze the following document content. Take your time to understand the key concepts, main ideas, relationships, and important details before creating learning materials.
+
+STEP 1: DOCUMENT ANALYSIS
+First, thoroughly read and understand this document content:
+
+${contentToAnalyze}
+
+STEP 2: CONTENT UNDERSTANDING
+Before creating any materials, identify:
+- Main topics and themes
+- Key concepts and definitions  
+- Important processes or procedures
+- Critical facts and data points
+- Relationships between ideas
+- Learning objectives that emerge from the content
+
+STEP 3: CREATE EDUCATIONAL MATERIALS
+Based on your thorough understanding of the document, create high-quality learning materials.
 
 CRITICAL REQUIREMENTS:
-1. READ AND UNDERSTAND the document content completely before generating any materials
-2. ONLY create flashcards and questions based on information EXPLICITLY stated in the document
-3. Use PERFECT grammar, spelling, and sentence structure in all content
-4. Ensure ALL content is directly relevant to the document's subject matter
-5. NO generic or template-based content - everything must be document-specific
+1. ONLY use information explicitly found in the provided document
+2. Every flashcard and quiz question must be directly traceable to specific content in the document
+3. Use perfect grammar, spelling, and professional language
+4. Create meaningful, educational content that promotes deep learning
+5. Avoid generic or template-based responses
+6. Focus on the most important and relevant information from the document
 
 FLASHCARD CREATION RULES:
-- Create exactly 10-12 flashcards
-- Each flashcard MUST be based on specific information from the document
-- Questions should be clear, specific, and grammatically perfect
-- Answers should be comprehensive but concise (2-4 sentences maximum)
-- Focus on: key definitions, important concepts, main processes, significant facts
-- Categories: Definition, Concept, Process, Fact, Application
+- Create 8-10 high-quality flashcards
+- Each flashcard must test understanding of specific document content
+- Questions should be clear, specific, and promote active recall
+- Answers should be comprehensive yet concise (2-3 sentences)
+- Include context or significance when relevant
+- Categories: Definition, Concept, Process, Application, Analysis
+- Prioritize the most important information from the document
 
 QUIZ QUESTION CREATION RULES:
-- Create exactly 6-8 multiple choice questions
-- Each question MUST test understanding of content from the document
-- All 4 answer options must be plausible and related to the document's topic
-- Only ONE answer should be correct based on the document
-- Explanations should reference specific parts of the document
+- Create 5-7 multiple choice questions
+- Each question must test comprehension of document content
+- All answer options should be plausible and related to the document topic
+- Only one answer should be definitively correct based on the document
+- Provide detailed explanations that reference the source material
+- Test different levels of understanding (recall, comprehension, application)
 
 QUALITY STANDARDS:
-- Perfect grammar and spelling in ALL content
-- Clear, professional language
-- No repetitive or similar questions
-- Each item should add unique educational value
-- Content must be directly traceable to the source document
+- Impeccable grammar and spelling throughout
+- Professional, clear, and engaging language
+- No repetitive content - each item should be unique
+- Educational value - promote genuine learning and understanding
+- Document-specific content only - no generic information
+- Logical flow and appropriate difficulty level
 
-OUTPUT FORMAT (JSON only):
+REQUIRED OUTPUT FORMAT (JSON only, no additional text):
 {
   "flashcards": [
     {
-      "id": "fc-X",
-      "question": "Clear, specific question about document content",
-      "answer": "Precise, grammatically correct answer based on document information.",
-      "category": "Definition"
+      "id": "fc-1",
+      "question": "Specific question based on document content",
+      "answer": "Comprehensive answer with context and significance when relevant.",
+      "category": "Appropriate category"
     }
   ],
   "quizQuestions": [
     {
-      "id": "quiz-X",
-      "question": "Clear question testing document comprehension",
-      "options": ["Correct answer", "Plausible wrong answer", "Another wrong answer", "Third wrong answer"],
+      "id": "quiz-1", 
+      "question": "Question testing understanding of document content",
+      "options": ["Correct answer from document", "Plausible incorrect option", "Another plausible incorrect option", "Third plausible incorrect option"],
       "correctAnswer": 0,
-      "explanation": "Clear explanation referencing the document content and why this answer is correct."
+      "explanation": "Detailed explanation referencing specific document content and explaining why this answer is correct."
     }
   ]
 }
 
-Remember: Quality over quantity. Every item must be grammatically perfect and directly relevant to the document.
+REMEMBER: Take time to understand the document first. Quality over quantity. Every item must be educationally valuable and directly based on the provided content.
 `;
 
-    console.log('🔄 Sending analysis request to OpenAI...');
+    console.log('🔄 Sending comprehensive analysis request to OpenAI...');
+    console.log('📊 Analyzing', contentToAnalyze.length, 'characters of content');
     
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [
         {
           role: "system",
-          content: "You are a world-class educational content creator with perfect grammar and writing skills. You create only high-quality, document-specific learning materials. You never use generic templates or create irrelevant content. Every flashcard and quiz question you generate is grammatically perfect, educationally valuable, and directly based on the source document provided."
+          content: "You are an expert educational content creator and learning scientist. You excel at reading and understanding documents thoroughly, then creating high-quality, relevant learning materials. You always take time to understand content before creating materials. Your flashcards and quiz questions are always grammatically perfect, educationally sound, and directly based on the source material. You never create generic or irrelevant content."
         },
         {
           role: "user",
           content: analysisPrompt
         }
       ],
-      temperature: 0.1, // Very low temperature for consistent, high-quality output
-      max_tokens: 3500 // Optimized for quality content
+      temperature: 0.2, // Low temperature for focused, consistent output
+      max_tokens: 4000, // Increased for more comprehensive content
+      presence_penalty: 0.1, // Slight penalty to avoid repetition
+      frequency_penalty: 0.1 // Slight penalty for varied language
     });
 
     const content = response.choices[0]?.message?.content;
@@ -104,7 +132,8 @@ Remember: Quality over quantity. Every item must be grammatically perfect and di
       throw new Error('No response received from OpenAI');
     }
 
-    console.log('✅ Received response from OpenAI');
+    console.log('✅ Received comprehensive analysis from OpenAI');
+    console.log('📝 Response length:', content.length, 'characters');
 
     // Parse the JSON response
     const jsonMatch = content.match(/\{[\s\S]*\}/);
@@ -113,30 +142,55 @@ Remember: Quality over quantity. Every item must be grammatically perfect and di
       throw new Error('Invalid JSON format in OpenAI response');
     }
 
-    const parsedResponse = JSON.parse(jsonMatch[0]);
+    let parsedResponse;
+    try {
+      parsedResponse = JSON.parse(jsonMatch[0]);
+    } catch (parseError) {
+      console.error('JSON parsing error:', parseError);
+      console.error('Raw content:', content);
+      throw new Error('Failed to parse OpenAI response as JSON');
+    }
     
     const flashcards = parsedResponse.flashcards || [];
     const quizQuestions = parsedResponse.quizQuestions || [];
 
-    // Validate the generated content
+    // Validate content quality
     if (flashcards.length === 0 && quizQuestions.length === 0) {
-      throw new Error('No valid content generated by OpenAI');
+      throw new Error('No valid educational content generated');
     }
 
-    console.log(`✅ OpenAI Analysis Complete:`);
-    console.log(`📚 Generated ${flashcards.length} high-quality flashcards`);
-    console.log(`❓ Generated ${quizQuestions.length} comprehensive quiz questions`);
+    // Validate flashcard structure
+    const validFlashcards = flashcards.filter(fc => 
+      fc.question && fc.answer && fc.question.length > 10 && fc.answer.length > 20
+    );
+
+    // Validate quiz question structure  
+    const validQuizQuestions = quizQuestions.filter(q =>
+      q.question && q.options && q.options.length === 4 && q.explanation &&
+      q.correctAnswer >= 0 && q.correctAnswer < 4
+    );
+
+    console.log(`✅ Content Quality Check:`);
+    console.log(`📚 Valid flashcards: ${validFlashcards.length}/${flashcards.length}`);
+    console.log(`❓ Valid quiz questions: ${validQuizQuestions.length}/${quizQuestions.length}`);
+
+    // Validate the generated content
+    if (validFlashcards.length === 0 && validQuizQuestions.length === 0) {
+      throw new Error('No valid educational content passed quality checks');
+    }
+
+    console.log(`🎯 OpenAI Analysis Complete - High Quality Educational Content Generated!`);
 
     return {
-      flashcards: flashcards,
-      quizQuestions: quizQuestions
+      flashcards: validFlashcards,
+      quizQuestions: validQuizQuestions
     };
 
   } catch (error) {
-    console.error('❌ Error during OpenAI analysis:', error);
+    console.error('❌ Error during comprehensive OpenAI analysis:', error);
     
     // Fallback to local generation if OpenAI fails
-    console.log('🔄 Falling back to local content generation...');
+    console.log('🔄 Falling back to local content generation as backup...');
     return generateLocalContent(pdfContent);
   }
 };
