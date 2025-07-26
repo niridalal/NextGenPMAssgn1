@@ -4,6 +4,12 @@ import { openai } from '../lib/openai';
 export const generateFlashcards = async (pdfContent: string): Promise<Flashcard[]> => {
   console.log('🤖 Generating flashcards with OpenAI...');
   
+  // Check if OpenAI is available
+  if (!openai) {
+    console.log('OpenAI API key not provided, using local generation');
+    return generateLocalFlashcards(pdfContent);
+  }
+  
   if (!pdfContent || pdfContent.trim().length < 100) {
     console.warn('PDF content too short for meaningful analysis');
     return [];
@@ -83,6 +89,12 @@ Generate flashcards that would genuinely help someone learn and understand this 
 
 export const generateQuizQuestions = async (pdfContent: string): Promise<QuizQuestion[]> => {
   console.log('🤖 Generating quiz questions with OpenAI...');
+  
+  // Check if OpenAI is available
+  if (!openai) {
+    console.log('OpenAI API key not provided, using local generation');
+    return generateLocalQuizQuestions(pdfContent);
+  }
   
   if (!pdfContent || pdfContent.trim().length < 100) {
     console.warn('PDF content too short for meaningful quiz generation');
@@ -164,12 +176,6 @@ Create questions that would effectively assess someone's understanding of this m
 
 export async function generateFlashcardsAndQuiz(text: string): Promise<{ flashcards: Flashcard[], quiz: QuizQuestion[] }> {
   try {
-    // Check if OpenAI is available
-    if (!openai) {
-      console.log('OpenAI API key not provided, using local generation');
-      return generateLocalContent(text);
-    }
-
     // Split text into chunks if it's too long (OpenAI has token limits)
     const maxChunkSize = 8000; // Conservative limit
 
