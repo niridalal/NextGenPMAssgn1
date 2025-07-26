@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { User, LogOut, ChevronDown, Mail, Calendar, Settings } from 'lucide-react';
+import { User, LogOut, ChevronDown, Mail, Calendar } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 const UserMenu: React.FC = () => {
@@ -145,14 +145,6 @@ const UserMenu: React.FC = () => {
 
             {/* Actions */}
             <div className="border-t border-gray-100 p-4 space-y-2">
-              <button
-                onClick={() => setIsOpen(false)}
-                className="w-full flex items-center space-x-3 px-4 py-3 text-left text-gray-700 hover:bg-gray-50 rounded-xl transition-colors font-medium font-sans"
-              >
-                <Settings className="h-4 w-4" />
-                <span className="font-semibold">Account Settings</span>
-              </button>
-              
               <button
                 onClick={handleSignOut}
                 className="w-full flex items-center space-x-3 px-4 py-3 text-left text-red-600 hover:bg-red-50 rounded-xl transition-colors font-medium font-sans"
