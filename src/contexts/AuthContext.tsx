@@ -27,8 +27,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    console.log('🔐 Initializing auth context...');
+    
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log('📋 Initial session:', session ? 'Found' : 'None');
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
@@ -38,6 +41,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
+      console.log('🔄 Auth state changed:', _event, session ? 'User logged in' : 'User logged out');
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
@@ -47,23 +51,41 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const signIn = async (email: string, password: string) => {
+    console.log('🔑 Attempting sign in for:', email);
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
+    
+    if (error) {
+      console.error('❌ Sign in error:', error.message);
+    } else {
+      console.log('✅ Sign in successful');
+    }
+    
     return { error };
   };
 
   const signUp = async (email: string, password: string) => {
+    console.log('📝 Attempting sign up for:', email);
     const { error } = await supabase.auth.signUp({
       email,
       password,
     });
+    
+    if (error) {
+      console.error('❌ Sign up error:', error.message);
+    } else {
+      console.log('✅ Sign up successful');
+    }
+    
     return { error };
   };
 
   const signOut = async () => {
+    console.log('👋 Signing out...');
     await supabase.auth.signOut();
+    console.log('✅ Sign out complete');
   };
 
   const value = {
@@ -74,6 +96,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     signUp,
     signOut,
   };
+
+  console.log('🔐 Auth context state:', { 
+    hasUser: !!user, 
+    loading, 
+    userEmail: user?.email 
+  });
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
