@@ -10,7 +10,13 @@ import ProgressTracker from './components/ProgressTracker';
 import { Flashcard, QuizQuestion, PDFProgress } from './types';
 import { extractTextFromPDF } from './utils/pdfProcessor';
 import { analyzeContentWithOpenAI } from './utils/contentGenerator';
-import { supabase } from './lib/supabase';
+import { 
+  savePDFToSupabase, 
+  loadUserPDFs, 
+  updatePDFProgress as updateSupabasePDFProgress, 
+  deletePDFFromSupabase,
+  migrateLocalStorageToSupabase 
+} from './lib/pdfStorage';
 
 type ActiveView = 'home' | 'flashcards' | 'quiz';
 type HomeTab = 'upload' | 'progress';
@@ -32,59 +38,68 @@ function App() {
   // Load progress data on component mount
   React.useEffect(() => {
     if (user) {
-      loadProgressData();
+      initializeUserData();
     }
   }, [user]);
 
-  const loadProgressData = async () => {
+  const initializeUserData = async () => {
     try {
-      const savedProgress = localStorage.getItem(`pdf_progress_${user?.id}`);
-      if (savedProgress) {
-        const parsed = JSON.parse(savedProgress);
-        // Convert Set objects back from arrays
-        const progressWithSets = parsed.map((item: any) => ({
-          ...item,
-          flashcardsViewed: new Set(item.flashcardsViewed || []),
-          quizAnswered: new Set(item.quizAnswered || [])
-        }));
-        setProgressData(progressWithSets);
-      }
+      console.log('🔄 Initializing user data...');
+      
+      // First, try to migrate any existing localStorage data
+      await migrateLocalStorageToSupabase();
+      
+      // Then load data from Supabase
+      const supabaseData = await loadUserPDFs();
+      setProgressData(supabaseData);
+      
+      console.log('✅ User data initialized with', supabaseData.length, 'PDFs');
     } catch (error) {
-      console.error('Error loading progress data:', error);
+      console.error('❌ Error initializing user data:', error);
     }
   };
 
-  const saveProgressData = (data: PDFProgress[]) => {
-    try {
-      // Convert Set objects to arrays for JSON serialization
-      const dataForStorage = data.map(item => ({
-        ...item,
-        flashcardsViewed: Array.from(item.flashcardsViewed),
-        quizAnswered: Array.from(item.quizAnswered)
-      }));
-      localStorage.setItem(`pdf_progress_${user?.id}`, JSON.stringify(dataForStorage));
-      setProgressData(data);
-    } catch (error) {
-      console.error('Error saving progress data:', error);
-    }
-  };
-
-  const updatePDFProgress = (updatedProgress: PDFProgress) => {
-    const newProgressData = progressData.map(item => 
+  const updatePDFProgress = async (updatedProgress: PDFProgress) => {
+    // Update local state immediately for responsive UI
+    const newProgressData = progressData.map(item =>
       item.id === updatedProgress.id ? updatedProgress : item
     );
-    saveProgressData(newProgressData);
+    setProgressData(newProgressData);
     setCurrentPDFProgress(updatedProgress);
+
+    // Update Supabase in background
+    await updateSupabasePDFProgress(updatedProgress.id, {
+      flashcardsCompleted: updatedProgress.flashcardsCompleted,
+      flashcardsViewed: updatedProgress.flashcardsViewed,
+      quizCompleted: updatedProgress.quizCompleted,
+      quizAnswered: updatedProgress.quizAnswered,
+      currentFlashcardIndex: updatedProgress.currentFlashcardIndex,
+      currentQuizIndex: updatedProgress.currentQuizIndex
+    });
   };
 
-  const deletePDFProgress = (pdfId: string) => {
-    const newProgressData = progressData.filter(item => item.id !== pdfId);
-    saveProgressData(newProgressData);
-    
-    if (currentPDFProgress?.id === pdfId) {
-      setCurrentPDFProgress(null);
-      setActiveView('home');
-      setActiveHomeTab('upload');
+  const deletePDFProgress = async (pdfId: string) => {
+    try {
+      // Delete from Supabase
+      const success = await deletePDFFromSupabase(pdfId);
+      
+      if (success) {
+        // Update local state
+        const newProgressData = progressData.filter(item => item.id !== pdfId);
+        setProgressData(newProgressData);
+        
+        if (currentPDFProgress?.id === pdfId) {
+          setCurrentPDFProgress(null);
+          setActiveView('home');
+          setActiveHomeTab('upload');
+        }
+        
+        console.log('✅ PDF deleted successfully');
+      } else {
+        console.error('❌ Failed to delete PDF');
+      }
+    } catch (error) {
+      console.error('❌ Error deleting PDF:', error);
     }
   };
 
@@ -161,28 +176,46 @@ function App() {
       setFlashcards(analysisResult.flashcards);
       setQuizQuestions(analysisResult.quizQuestions);
       
-      // Create new progress entry
-      const newProgress: PDFProgress = {
-        id: `pdf-${Date.now()}`,
-        filename: extractedData.filename,
-        content: extractedData.content,
-        flashcardsTotal: analysisResult.flashcards.length,
-        flashcardsCompleted: 0,
-        flashcardsViewed: new Set(),
-        quizTotal: analysisResult.quizQuestions.length,
-        quizCompleted: 0,
-        quizAnswered: new Set(),
-        currentFlashcardIndex: 0,
-        currentQuizIndex: 0,
-        lastAccessed: new Date().toISOString(),
-        createdAt: new Date().toISOString(),
-        flashcards: analysisResult.flashcards,
-        quizQuestions: analysisResult.quizQuestions
-      };
+      setProcessingStep('Saving to database...');
+      setProcessingProgress(98);
       
-      const newProgressData = [...progressData, newProgress];
-      saveProgressData(newProgressData);
-      setCurrentPDFProgress(newProgress);
+      // Save to Supabase
+      const pdfId = await savePDFToSupabase(
+        extractedData.filename,
+        extractedData.content,
+        extractedData.pageCount,
+        analysisResult.flashcards,
+        analysisResult.quizQuestions
+      );
+      
+      if (pdfId) {
+        // Create new progress entry
+        const newProgress: PDFProgress = {
+          id: pdfId,
+          filename: extractedData.filename,
+          content: extractedData.content,
+          flashcardsTotal: analysisResult.flashcards.length,
+          flashcardsCompleted: 0,
+          flashcardsViewed: new Set(),
+          quizTotal: analysisResult.quizQuestions.length,
+          quizCompleted: 0,
+          quizAnswered: new Set(),
+          currentFlashcardIndex: 0,
+          currentQuizIndex: 0,
+          lastAccessed: new Date().toISOString(),
+          createdAt: new Date().toISOString(),
+          flashcards: analysisResult.flashcards,
+          quizQuestions: analysisResult.quizQuestions
+        };
+        
+        const newProgressData = [...progressData, newProgress];
+        setProgressData(newProgressData);
+        setCurrentPDFProgress(newProgress);
+        
+        console.log('✅ PDF saved to Supabase with ID:', pdfId);
+      } else {
+        throw new Error('Failed to save PDF to database');
+      }
       
       setProcessingStep('Complete!');
       setProcessingProgress(100);
