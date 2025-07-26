@@ -1,5 +1,6 @@
 import React, { useCallback } from 'react';
-import { Upload, FileText, AlertCircle, Loader2 } from 'lucide-react';
+import { Upload, FileText, AlertCircle, Loader2, Settings } from 'lucide-react';
+import { isOpenAIConfigured } from '../lib/openai';
 
 interface PDFUploaderProps {
   onFileSelect: (file: File) => void;
@@ -12,6 +13,16 @@ const PDFUploader: React.FC<PDFUploaderProps> = ({
   isProcessing, 
   error 
 }) => {
+  const [openAIConfigured, setOpenAIConfigured] = React.useState<boolean | null>(null);
+
+  React.useEffect(() => {
+    const checkOpenAI = async () => {
+      const configured = await isOpenAIConfigured();
+      setOpenAIConfigured(configured);
+    };
+    checkOpenAI();
+  }, []);
+
   const handleDrop = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     const files = Array.from(e.dataTransfer.files);
@@ -84,6 +95,22 @@ const PDFUploader: React.FC<PDFUploaderProps> = ({
           )}
         </div>
       </div>
+      
+      {openAIConfigured === false && (
+        <div className="mt-6 p-4 bg-amber-50 border border-amber-200 rounded-xl">
+          <div className="flex items-center space-x-3">
+            <Settings className="h-5 w-5 text-amber-600" />
+            <div>
+              <p className="text-amber-800 font-medium">OpenAI API Key Required</p>
+              <p className="text-amber-700 text-sm mt-1">
+                Please add your OpenAI API key to the app_settings table in Supabase for AI-powered content generation.
+                <br />
+                <span className="font-mono text-xs">UPDATE app_settings SET value = 'your-api-key' WHERE key = 'OPENAI_API_KEY';</span>
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
       
       {error && (
         <div className="mt-6 p-4 bg-red-50 border border-red-200 rounded-xl">

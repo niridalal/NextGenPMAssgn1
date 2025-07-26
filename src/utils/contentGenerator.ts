@@ -19,20 +19,11 @@ export const analyzeContentWithOpenAI = async (pdfContent: string): Promise<Cont
   
   if (!openai) {
     console.warn('⚠️ OpenAI client not available, using local generation');
-    console.log('💡 To use OpenAI: Add OPENAI_API_KEY to your Supabase app_settings table');
+    console.log('💡 Make sure your OpenAI API key is properly configured in Supabase');
     return generateLocalContent(pdfContent);
   }
-
-  try {
-    // Clean and prepare content for analysis
-    const cleanedContent = cleanPDFContent(pdfContent);
-    const contentToAnalyze = cleanedContent.substring(0, 25000); // Increased for better analysis
-    
-    console.log('📖 Analyzing', contentToAnalyze.length, 'characters of cleaned content');
-    
-    // Step 1: First, understand the document
-    const understandingPrompt = `You are an expert document analyst. Please read this document carefully and provide a comprehensive summary of its main topics, key concepts, and important information.
-
+  
+  console.log('🤖 OpenAI client ready for content generation');
 DOCUMENT CONTENT:
 ${contentToAnalyze}
 
