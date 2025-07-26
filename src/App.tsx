@@ -15,14 +15,21 @@ function App() {
   const [flashcards, setFlashcards] = useState<Flashcard[]>([]);
   const [quizQuestions, setQuizQuestions] = useState<QuizQuestion[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [processingStep, setProcessingStep] = useState('');
+  const [processingProgress, setProcessingProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
   const handleFileSelect = async (file: File) => {
     setIsProcessing(true);
     setError(null);
+    setProcessingStep('Extracting text from PDF...');
+    setProcessingProgress(10);
     
     try {
       console.log('📄 Processing PDF:', file.name);
+      
+      // Simulate progress for PDF extraction
+      setTimeout(() => setProcessingProgress(25), 500);
       
       // Extract text from PDF
       const extractedData = await extractTextFromPDF(file);
@@ -30,6 +37,9 @@ function App() {
       if (!extractedData.content || extractedData.content.trim().length === 0) {
         throw new Error('This PDF appears to contain no readable text. Please try a different PDF file.');
       }
+      
+      setProcessingStep('PDF text extracted successfully');
+      setProcessingProgress(40);
       
       console.log('✅ PDF text extracted successfully');
       console.log('📊 Content length:', extractedData.content.length, 'characters');
@@ -40,31 +50,52 @@ function App() {
         content: extractedData.content
       });
       
+      setProcessingStep('Analyzing content with AI...');
+      setProcessingProgress(60);
+      
       // Analyze PDF content with OpenAI and generate learning materials
       console.log('🤖 Analyzing PDF content with OpenAI...');
       console.log('='.repeat(50));
       console.log('🚀 STARTING CONTENT GENERATION PROCESS');
       console.log('='.repeat(50));
+      
+      setTimeout(() => {
+        setProcessingStep('Generating flashcards and quiz questions...');
+        setProcessingProgress(80);
+      }, 1000);
+      
       const analysisResult = await analyzeContentWithOpenAI(extractedData.content);
       console.log('='.repeat(50));
       console.log('✅ CONTENT GENERATION PROCESS COMPLETE');
       console.log('='.repeat(50));
       
+      setProcessingStep('Finalizing learning materials...');
+      setProcessingProgress(95);
+      
       setFlashcards(analysisResult.flashcards);
       setQuizQuestions(analysisResult.quizQuestions);
+      
+      setProcessingStep('Complete!');
+      setProcessingProgress(100);
       
       console.log('✅ Content generation complete');
       console.log('📚 Generated:', analysisResult.flashcards.length, 'flashcards');
       console.log('❓ Generated:', analysisResult.quizQuestions.length, 'quiz questions');
       
-      // Switch to flashcards view
-      setActiveView('flashcards');
+      // Small delay to show completion
+      setTimeout(() => {
+        setActiveView('flashcards');
+      }, 500);
       
     } catch (err) {
       console.error('❌ Error processing PDF:', err);
       setError(err instanceof Error ? err.message : 'An error occurred while processing the PDF');
     } finally {
-      setIsProcessing(false);
+      setTimeout(() => {
+        setIsProcessing(false);
+        setProcessingStep('');
+        setProcessingProgress(0);
+      }, 500);
     }
   };
 
@@ -74,6 +105,8 @@ function App() {
     setFlashcards([]);
     setQuizQuestions([]);
     setError(null);
+    setProcessingStep('');
+    setProcessingProgress(0);
   };
 
   return (
@@ -145,6 +178,8 @@ function App() {
               <PDFUploader
                 onFileSelect={handleFileSelect}
                 isProcessing={isProcessing}
+                processingStep={processingStep}
+                processingProgress={processingProgress}
                 error={error}
               />
             </div>
