@@ -7,11 +7,11 @@ interface ContentAnalysisResult {
 }
 
 export const analyzeContentWithOpenAI = async (pdfContent: string): Promise<ContentAnalysisResult> => {
-  console.log('🤖 Starting comprehensive PDF analysis with OpenAI...');
+  console.log('🤖 Starting OpenAI content analysis...');
   
   if (!pdfContent || pdfContent.trim().length < 200) {
     console.warn('PDF content too short for meaningful analysis');
-    return { flashcards: [], quizQuestions: [] };
+    return generateLocalContent(pdfContent);
   }
 
   // Check if OpenAI is available
@@ -21,110 +21,86 @@ export const analyzeContentWithOpenAI = async (pdfContent: string): Promise<Cont
   }
 
   try {
-    console.log('📖 Analyzing document content thoroughly...');
+    // Take substantial content for analysis
+    const contentToAnalyze = pdfContent.substring(0, 15000);
+    console.log('📖 Analyzing', contentToAnalyze.length, 'characters of content');
     
-    // Take more content for better analysis (up to 20,000 characters)
-    const contentToAnalyze = pdfContent.substring(0, 20000);
-    
-    // Multi-step analysis prompt for better understanding
-    const analysisPrompt = `
-ROLE: You are a world-class educational content creator with expertise in learning science, curriculum design, and assessment creation. You have 20+ years of experience creating high-quality educational materials.
+    const systemPrompt = `You are an expert educational content creator with 20+ years of experience in curriculum design and assessment creation. You excel at creating high-quality, grammatically perfect learning materials that promote deep understanding.
 
-TASK: Carefully read and analyze the following document content. Take your time to understand the key concepts, main ideas, relationships, and important details before creating learning materials.
+Your task is to analyze document content and create educational materials that are:
+- Grammatically perfect with no errors
+- Directly based on the document content
+- Educationally valuable and meaningful
+- Clear and well-structured
+- Focused on key concepts and important information`;
 
-STEP 1: DOCUMENT ANALYSIS
-First, thoroughly read and understand this document content:
+    const userPrompt = `Please carefully read and analyze this document content, then create high-quality educational materials.
 
+DOCUMENT CONTENT:
 ${contentToAnalyze}
 
-STEP 2: CONTENT UNDERSTANDING
-Before creating any materials, identify:
-- Main topics and themes
-- Key concepts and definitions  
-- Important processes or procedures
-- Critical facts and data points
-- Relationships between ideas
-- Learning objectives that emerge from the content
+INSTRUCTIONS:
+1. Read and understand the document thoroughly
+2. Identify the most important concepts, facts, and ideas
+3. Create flashcards that highlight key points from the document
+4. Create quiz questions that test understanding of the document content
 
-STEP 3: CREATE EDUCATIONAL MATERIALS
-Based on your thorough understanding of the document, create high-quality learning materials.
+FLASHCARD REQUIREMENTS:
+- Create 8-10 flashcards based on the document
+- Each flashcard must test knowledge of specific content from the document
+- Questions should be clear and grammatically correct
+- Answers should be comprehensive (2-3 sentences) and accurate
+- Focus on the most important information
+- Use categories: Definition, Concept, Process, Application, Analysis
 
-CRITICAL REQUIREMENTS:
-1. ONLY use information explicitly found in the provided document
-2. Every flashcard and quiz question must be directly traceable to specific content in the document
-3. Use perfect grammar, spelling, and professional language
-4. Create meaningful, educational content that promotes deep learning
-5. Avoid generic or template-based responses
-6. Focus on the most important and relevant information from the document
-
-FLASHCARD CREATION RULES:
-- Create 8-10 high-quality flashcards
-- Each flashcard must test understanding of specific document content
-- Questions should be clear, specific, and promote active recall
-- Answers should be comprehensive yet concise (2-3 sentences)
-- Include context or significance when relevant
-- Categories: Definition, Concept, Process, Application, Analysis
-- Prioritize the most important information from the document
-
-QUIZ QUESTION CREATION RULES:
+QUIZ REQUIREMENTS:
 - Create 5-7 multiple choice questions
-- Each question must test comprehension of document content
-- All answer options should be plausible and related to the document topic
-- Only one answer should be definitively correct based on the document
-- Provide detailed explanations that reference the source material
-- Test different levels of understanding (recall, comprehension, application)
+- Each question must be based on document content
+- All options should be plausible but only one correct
+- Provide detailed explanations for correct answers
+- Questions should test comprehension and understanding
 
 QUALITY STANDARDS:
-- Impeccable grammar and spelling throughout
-- Professional, clear, and engaging language
-- No repetitive content - each item should be unique
-- Educational value - promote genuine learning and understanding
-- Document-specific content only - no generic information
-- Logical flow and appropriate difficulty level
+- Perfect grammar and spelling throughout
+- Professional, clear language
+- No generic or template responses
+- Each item must be unique and valuable
+- Content must be directly from the document
 
-REQUIRED OUTPUT FORMAT (JSON only, no additional text):
+Please respond with ONLY a valid JSON object in this exact format:
+
 {
   "flashcards": [
     {
       "id": "fc-1",
-      "question": "Specific question based on document content",
-      "answer": "Comprehensive answer with context and significance when relevant.",
-      "category": "Appropriate category"
+      "question": "Clear, grammatically correct question about document content",
+      "answer": "Comprehensive answer with context and explanation from the document.",
+      "category": "Definition"
     }
   ],
   "quizQuestions": [
     {
-      "id": "quiz-1", 
-      "question": "Question testing understanding of document content",
-      "options": ["Correct answer from document", "Plausible incorrect option", "Another plausible incorrect option", "Third plausible incorrect option"],
+      "id": "quiz-1",
+      "question": "Clear multiple choice question about document content",
+      "options": ["Correct answer", "Incorrect option 1", "Incorrect option 2", "Incorrect option 3"],
       "correctAnswer": 0,
-      "explanation": "Detailed explanation referencing specific document content and explaining why this answer is correct."
+      "explanation": "Detailed explanation of why this answer is correct based on the document."
     }
   ]
-}
+}`;
 
-REMEMBER: Take time to understand the document first. Quality over quantity. Every item must be educationally valuable and directly based on the provided content.
-`;
-
-    console.log('🔄 Sending comprehensive analysis request to OpenAI...');
-    console.log('📊 Analyzing', contentToAnalyze.length, 'characters of content');
+    console.log('🔄 Sending analysis request to OpenAI...');
     
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [
-        {
-          role: "system",
-          content: "You are an expert educational content creator and learning scientist. You excel at reading and understanding documents thoroughly, then creating high-quality, relevant learning materials. You always take time to understand content before creating materials. Your flashcards and quiz questions are always grammatically perfect, educationally sound, and directly based on the source material. You never create generic or irrelevant content."
-        },
-        {
-          role: "user",
-          content: analysisPrompt
-        }
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt }
       ],
-      temperature: 0.2, // Low temperature for focused, consistent output
-      max_tokens: 4000, // Increased for more comprehensive content
-      presence_penalty: 0.1, // Slight penalty to avoid repetition
-      frequency_penalty: 0.1 // Slight penalty for varied language
+      temperature: 0.1, // Very low for consistent, focused output
+      max_tokens: 3500,
+      presence_penalty: 0,
+      frequency_penalty: 0
     });
 
     const content = response.choices[0]?.message?.content;
@@ -132,75 +108,145 @@ REMEMBER: Take time to understand the document first. Quality over quantity. Eve
       throw new Error('No response received from OpenAI');
     }
 
-    console.log('✅ Received comprehensive analysis from OpenAI');
+    console.log('✅ Received response from OpenAI');
     console.log('📝 Response length:', content.length, 'characters');
 
-    // Parse the JSON response
-    const jsonMatch = content.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      console.error('Invalid JSON format in OpenAI response:', content);
-      throw new Error('Invalid JSON format in OpenAI response');
+    // Clean and parse JSON response
+    let cleanedContent = content.trim();
+    
+    // Remove any markdown code blocks
+    cleanedContent = cleanedContent.replace(/```json\s*/g, '').replace(/```\s*/g, '');
+    
+    // Find JSON object
+    const jsonStart = cleanedContent.indexOf('{');
+    const jsonEnd = cleanedContent.lastIndexOf('}') + 1;
+    
+    if (jsonStart === -1 || jsonEnd === 0) {
+      throw new Error('No valid JSON found in OpenAI response');
     }
-
+    
+    const jsonString = cleanedContent.substring(jsonStart, jsonEnd);
+    
     let parsedResponse;
     try {
-      parsedResponse = JSON.parse(jsonMatch[0]);
+      parsedResponse = JSON.parse(jsonString);
     } catch (parseError) {
       console.error('JSON parsing error:', parseError);
-      console.error('Raw content:', content);
+      console.error('Attempted to parse:', jsonString.substring(0, 500));
       throw new Error('Failed to parse OpenAI response as JSON');
     }
     
-    const flashcards = parsedResponse.flashcards || [];
-    const quizQuestions = parsedResponse.quizQuestions || [];
+    // Validate and clean the response
+    const flashcards = (parsedResponse.flashcards || [])
+      .filter(fc => fc.question && fc.answer && fc.question.length > 10 && fc.answer.length > 20)
+      .map((fc, index) => ({
+        id: `fc-${index + 1}`,
+        question: fc.question.trim(),
+        answer: fc.answer.trim(),
+        category: fc.category || 'Concept'
+      }));
 
-    // Validate content quality
+    const quizQuestions = (parsedResponse.quizQuestions || [])
+      .filter(q => 
+        q.question && 
+        q.options && 
+        Array.isArray(q.options) && 
+        q.options.length === 4 && 
+        q.explanation &&
+        typeof q.correctAnswer === 'number' &&
+        q.correctAnswer >= 0 && 
+        q.correctAnswer < 4
+      )
+      .map((q, index) => ({
+        id: `quiz-${index + 1}`,
+        question: q.question.trim(),
+        options: q.options.map(opt => opt.trim()),
+        correctAnswer: q.correctAnswer,
+        explanation: q.explanation.trim()
+      }));
+
+    console.log(`✅ Content validation complete:`);
+    console.log(`📚 Valid flashcards: ${flashcards.length}`);
+    console.log(`❓ Valid quiz questions: ${quizQuestions.length}`);
+
+    // Ensure we have some content
     if (flashcards.length === 0 && quizQuestions.length === 0) {
       throw new Error('No valid educational content generated');
     }
 
-    // Validate flashcard structure
-    const validFlashcards = flashcards.filter(fc => 
-      fc.question && fc.answer && fc.question.length > 10 && fc.answer.length > 20
-    );
-
-    // Validate quiz question structure  
-    const validQuizQuestions = quizQuestions.filter(q =>
-      q.question && q.options && q.options.length === 4 && q.explanation &&
-      q.correctAnswer >= 0 && q.correctAnswer < 4
-    );
-
-    console.log(`✅ Content Quality Check:`);
-    console.log(`📚 Valid flashcards: ${validFlashcards.length}/${flashcards.length}`);
-    console.log(`❓ Valid quiz questions: ${validQuizQuestions.length}/${quizQuestions.length}`);
-
-    // Validate the generated content
-    if (validFlashcards.length === 0 && validQuizQuestions.length === 0) {
-      throw new Error('No valid educational content passed quality checks');
-    }
-
-    console.log(`🎯 OpenAI Analysis Complete - High Quality Educational Content Generated!`);
+    console.log('🎯 OpenAI analysis complete - high quality content generated!');
 
     return {
-      flashcards: validFlashcards,
-      quizQuestions: validQuizQuestions
+      flashcards,
+      quizQuestions
     };
 
   } catch (error) {
-    console.error('❌ Error during comprehensive OpenAI analysis:', error);
-    
-    // Fallback to local generation if OpenAI fails
-    console.log('🔄 Falling back to local content generation as backup...');
+    console.error('❌ Error during OpenAI analysis:', error);
+    console.log('🔄 Falling back to local content generation...');
     return generateLocalContent(pdfContent);
   }
 };
 
-// Fallback local generation for when OpenAI is not available
+// Fallback local generation
 const generateLocalContent = (content: string): ContentAnalysisResult => {
   console.log('🔧 Generating content locally...');
   
-  const flashcards = generateLocalFlashcards(content);
-  const quizQuestions = generateLocalQuizQuestions(content);
+  const sentences = content.split(/[.!?]+/).filter(s => s.trim().length > 50);
+  const flashcards: Flashcard[] = [];
+  const quizQuestions: QuizQuestion[] = [];
+  
+  // Generate flashcards from key sentences
+  sentences.slice(0, 8).forEach((sentence, index) => {
+    const trimmedSentence = sentence.trim();
+    if (trimmedSentence.length > 30) {
+      // Look for definition patterns
+      const definitionMatch = trimmedSentence.match(/([A-Z][a-zA-Z\s]{2,30})\s+is\s+([^,]{20,100})/);
+      if (definitionMatch) {
+        flashcards.push({
+          id: `fc-${index + 1}`,
+          question: `What is ${definitionMatch[1].trim()}?`,
+          answer: `${definitionMatch[2].trim()}. This concept is important for understanding the key ideas discussed in the document.`,
+          category: 'Definition'
+        });
+      } else {
+        // Create concept-based flashcard
+        const words = trimmedSentence.split(' ');
+        if (words.length > 10) {
+          const concept = words.slice(0, 5).join(' ');
+          flashcards.push({
+            id: `fc-${index + 1}`,
+            question: `Explain the concept related to ${concept.toLowerCase()}.`,
+            answer: `${trimmedSentence}. This information provides important context for understanding the document's main themes.`,
+            category: 'Concept'
+          });
+        }
+      }
+    }
+  });
+  
+  // Generate quiz questions
+  sentences.slice(0, 5).forEach((sentence, index) => {
+    const trimmedSentence = sentence.trim();
+    if (trimmedSentence.length > 40) {
+      const words = trimmedSentence.split(' ');
+      if (words.length > 8) {
+        const keyPhrase = words.slice(0, 6).join(' ');
+        quizQuestions.push({
+          id: `quiz-${index + 1}`,
+          question: `According to the document, what can be said about ${keyPhrase.toLowerCase()}?`,
+          options: [
+            trimmedSentence.substring(0, 80) + '...',
+            'It represents a theoretical framework for analysis.',
+            'It is primarily used for data collection purposes.',
+            'It serves as a measurement tool for evaluation.'
+          ],
+          correctAnswer: 0,
+          explanation: `The correct answer is based directly on the content from the document. This information is important for understanding the key concepts presented.`
+        });
+      }
+    }
+  });
   
   console.log(`📚 Generated ${flashcards.length} local flashcards`);
   console.log(`❓ Generated ${quizQuestions.length} local quiz questions`);
@@ -208,73 +254,7 @@ const generateLocalContent = (content: string): ContentAnalysisResult => {
   return { flashcards, quizQuestions };
 };
 
-// Simplified local generation functions
-const generateLocalFlashcards = (content: string): Flashcard[] => {
-  const sentences = content.split(/[.!?]+/).filter(s => s.trim().length > 50);
-  const flashcards: Flashcard[] = [];
-  
-  // Extract key concepts and definitions
-  sentences.forEach((sentence, index) => {
-    if (flashcards.length >= 8) return;
-    
-    // Look for definition patterns
-    const definitionMatch = sentence.match(/([A-Z][a-zA-Z\s]{2,30})\s+is\s+([^,]{20,100})/);
-    if (definitionMatch) {
-      flashcards.push({
-        id: `fc-${index}`,
-        question: `What is ${definitionMatch[1].trim()}?`,
-        answer: `${definitionMatch[2].trim()}\n\nContext: This definition is important for understanding the key concepts discussed in the document.`,
-        category: 'Definition'
-      });
-    }
-    
-    // Look for process descriptions
-    const processMatch = sentence.match(/(process|method|approach|technique)\s+of\s+([^,]{10,50})/i);
-    if (processMatch && !definitionMatch) {
-      flashcards.push({
-        id: `fc-${index}`,
-        question: `Describe the ${processMatch[1].toLowerCase()} of ${processMatch[2].trim()}.`,
-        answer: `${sentence.trim()}\n\nSignificance: Understanding this process is crucial for grasping the main concepts in the document.`,
-        category: 'Process'
-      });
-    }
-  });
-  
-  return flashcards;
-};
-
-const generateLocalQuizQuestions = (content: string): QuizQuestion[] => {
-  const sentences = content.split(/[.!?]+/).filter(s => s.trim().length > 50);
-  const questions: QuizQuestion[] = [];
-  
-  sentences.forEach((sentence, index) => {
-    if (questions.length >= 5) return;
-    
-    // Generate questions from definitions
-    const definitionMatch = sentence.match(/([A-Z][a-zA-Z\s]{2,30})\s+is\s+([^,]{20,100})/);
-    if (definitionMatch) {
-      const term = definitionMatch[1].trim();
-      const correctAnswer = definitionMatch[2].trim();
-      
-      questions.push({
-        id: `quiz-${index}`,
-        question: `According to the document, what is ${term}?`,
-        options: [
-          correctAnswer,
-          'A method for analyzing complex data sets',
-          'A theoretical framework for research',
-          'A tool for measuring performance metrics'
-        ],
-        correctAnswer: 0,
-        explanation: `The correct answer is "${correctAnswer}" as explicitly stated in the document. This definition is important for understanding the core concepts discussed in the material.`
-      });
-    }
-  });
-  
-  return questions;
-};
-
-// Legacy functions for backward compatibility (now deprecated)
+// Legacy functions for backward compatibility
 export const generateFlashcards = async (pdfContent: string): Promise<Flashcard[]> => {
   const result = await analyzeContentWithOpenAI(pdfContent);
   return result.flashcards;
