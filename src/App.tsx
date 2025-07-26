@@ -1,5 +1,8 @@
 import React, { useState } from 'react';
 import { BookOpen, CreditCard, Brain, FileText } from 'lucide-react';
+import { AuthProvider } from './contexts/AuthContext';
+import AuthGuard from './components/AuthGuard';
+import UserMenu from './components/UserMenu';
 import PDFUploader from './components/PDFUploader';
 import FlashcardViewer from './components/FlashcardViewer';
 import QuizInterface from './components/QuizInterface';
@@ -9,7 +12,7 @@ import { analyzeContentWithOpenAI } from './utils/contentGenerator';
 
 type ActiveView = 'upload' | 'flashcards' | 'quiz';
 
-function App() {
+function AppContent() {
   const [activeView, setActiveView] = useState<ActiveView>('upload');
   const [pdfData, setPdfData] = useState<{ filename: string; content: string } | null>(null);
   const [flashcards, setFlashcards] = useState<Flashcard[]>([]);
@@ -113,18 +116,24 @@ function App() {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
-        <div className="text-center mb-12">
-          <div className="flex items-center justify-center mb-6">
-            <div className="p-4 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl shadow-lg">
-              <BookOpen className="h-10 w-10 text-white" />
+        <div className="flex items-center justify-between mb-12">
+          <div className="flex-1"></div>
+          <div className="text-center flex-1">
+            <div className="flex items-center justify-center mb-6">
+              <div className="p-4 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl shadow-lg">
+                <BookOpen className="h-10 w-10 text-white" />
+              </div>
             </div>
+            <h1 className="text-4xl font-bold text-gray-900 mb-4">
+              PDF Learning Assistant
+            </h1>
+            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+              Transform your PDF documents into interactive flashcards and quizzes for better learning
+            </p>
           </div>
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">
-            PDF Learning Assistant
-          </h1>
-          <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-            Transform your PDF documents into interactive flashcards and quizzes for better learning
-          </p>
+          <div className="flex-1 flex justify-end">
+            <UserMenu />
+          </div>
         </div>
 
         {/* Navigation */}
@@ -213,6 +222,16 @@ function App() {
         )}
       </div>
     </div>
+  );
+}
+
+function App() {
+  return (
+    <AuthProvider>
+      <AuthGuard>
+        <AppContent />
+      </AuthGuard>
+    </AuthProvider>
   );
 }
 
