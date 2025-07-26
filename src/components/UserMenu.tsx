@@ -101,19 +101,6 @@ const UserMenu: React.FC = () => {
                 </div>
 
                 {/* User ID */}
-                <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-xl">
-                  <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
-                    <User className="h-4 w-4 text-green-600" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider font-mono">
-                      User ID
-                    </p>
-                    <p className="text-sm font-bold font-mono text-gray-900 truncate">
-                      {user?.id ? `${user.id.substring(0, 8)}...` : 'Not available'}
-                    </p>
-                  </div>
-                </div>
 
                 {/* Account Created */}
                 <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-xl">
