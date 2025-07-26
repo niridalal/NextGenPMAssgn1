@@ -62,14 +62,38 @@ export const getOpenAIClient = async (): Promise<OpenAI | null> => {
 // Check if OpenAI is properly configured
 export const isOpenAIConfigured = async (): Promise<boolean> => {
   try {
+    console.log('🔍 Checking if OpenAI API key exists in Supabase...');
+    
     const { data, error } = await supabase
       .from('app_settings')
       .select('value')
       .eq('key', 'OPENAI_API_KEY')
       .single();
 
-    return !error && data?.value && data.value !== 'your-openai-api-key-here';
+    if (error) {
+      console.error('❌ Error fetching OpenAI key:', error);
+      return false;
+    }
+
+    if (!data?.value) {
+      console.warn('⚠️ No OpenAI API key found in database');
+      return false;
+    }
+
+    if (data.value === 'your-openai-api-key-here' || data.value === 'your-actual-openai-api-key-here') {
+      console.warn('⚠️ OpenAI API key is still placeholder value');
+      return false;
+    }
+
+    if (!data.value.startsWith('sk-')) {
+      console.warn('⚠️ OpenAI API key format appears invalid (should start with sk-)');
+      return false;
+    }
+
+    console.log('✅ Valid OpenAI API key found in database');
+    return true;
   } catch {
+    console.error('❌ Exception while checking OpenAI configuration');
     return false;
   }
 };
