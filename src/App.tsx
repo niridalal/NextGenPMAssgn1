@@ -42,7 +42,13 @@ function App() {
       
       // Analyze PDF content with OpenAI and generate learning materials
       console.log('🤖 Analyzing PDF content with OpenAI...');
+      console.log('='.repeat(50));
+      console.log('🚀 STARTING CONTENT GENERATION PROCESS');
+      console.log('='.repeat(50));
       const analysisResult = await analyzeContentWithOpenAI(extractedData.content);
+      console.log('='.repeat(50));
+      console.log('✅ CONTENT GENERATION PROCESS COMPLETE');
+      console.log('='.repeat(50));
       
       setFlashcards(analysisResult.flashcards);
       setQuizQuestions(analysisResult.quizQuestions);

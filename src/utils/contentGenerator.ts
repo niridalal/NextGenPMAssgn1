@@ -8,9 +8,11 @@ interface ContentAnalysisResult {
 
 export const analyzeContentWithOpenAI = async (pdfContent: string): Promise<ContentAnalysisResult> => {
   console.log('🤖 Starting comprehensive PDF analysis...');
+  console.log('📊 Content length:', pdfContent.length, 'characters');
   
   if (!pdfContent || pdfContent.trim().length < 500) {
     console.warn('PDF content too short for meaningful analysis');
+    console.log('⚠️ Using LOCAL generation due to insufficient content');
     return generateLocalContent(pdfContent);
   }
 
@@ -21,16 +23,19 @@ export const analyzeContentWithOpenAI = async (pdfContent: string): Promise<Cont
     if (!openai) {
       console.warn('⚠️ OpenAI client not available, using local generation');
       console.log('💡 Make sure your OpenAI API key is properly configured in Supabase');
+      console.log('🔄 FALLING BACK TO LOCAL GENERATION');
       return generateLocalContent(pdfContent);
     }
     
     console.log('🤖 OpenAI client ready for content generation');
+    console.log('✨ USING OPENAI FOR CONTENT GENERATION');
 
     // Clean and prepare content for analysis
     const contentToAnalyze = cleanPDFContent(pdfContent).substring(0, 25000);
     
     if (contentToAnalyze.length < 500) {
       console.warn('Cleaned content too short for analysis');
+      console.log('⚠️ Using LOCAL generation due to insufficient cleaned content');
       return generateLocalContent(pdfContent);
     }
 
@@ -157,7 +162,7 @@ CRITICAL: Respond with ONLY valid JSON in this exact format:
 
   } catch (error) {
     console.error('❌ Error during OpenAI analysis:', error);
-    console.log('🔄 Falling back to local content generation...');
+    console.log('🔄 FALLING BACK TO LOCAL GENERATION due to error');
     return generateLocalContent(pdfContent);
   }
 };
@@ -251,7 +256,8 @@ const parseAndValidateResponse = (content: string): ContentAnalysisResult => {
 
 // Enhanced local content generation as fallback
 const generateLocalContent = (content: string): ContentAnalysisResult => {
-  console.log('🔧 Generating enhanced local content...');
+  console.log('🔧 GENERATING LOCAL CONTENT (NOT USING OPENAI)');
+  console.log('📝 This means OpenAI was not used for this generation');
   
   const cleanedContent = cleanPDFContent(content);
   const sentences = cleanedContent.split(/[.!?]+/).filter(s => s.trim().length > 30);
