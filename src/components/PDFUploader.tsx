@@ -85,10 +85,10 @@ const PDFUploader: React.FC<PDFUploaderProps> = ({
         </div>
       </div>
       
-              Analyzing PDF with OpenAI...
+      {error && (
         <div className="mt-6 p-4 bg-red-50 border border-red-200 rounded-xl">
           <div className="flex items-center space-x-3">
-              Deep content analysis in progress - generating flashcards and quiz questions
+            <AlertCircle className="h-5 w-5 text-red-600" />
             <p className="text-red-700">{error}</p>
           </div>
         </div>
