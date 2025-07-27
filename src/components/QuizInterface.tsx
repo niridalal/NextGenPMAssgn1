@@ -134,7 +134,7 @@ const QuizInterface: React.FC<QuizInterfaceProps> = ({
               onClick={onBack}
               className="px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl transition-colors"
             >
-              Upload New PDF
+              Back to Upload
             </button>
           </div>
         </div>
